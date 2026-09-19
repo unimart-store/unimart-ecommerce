@@ -63,12 +63,36 @@ const UniMartConfig = (() => {
   // getPath("pages/cart.html") or getPath("product.html?id=123").
   const getPath = (relativePath = "") => new URL(relativePath, FRONTEND_BASE_URL).href;
 
+  // ---- Currency (single source of truth) ----
+  // UniMart sells in Nepal: every stored amount is Nepalese Rupees (NPR).
+  // No conversion is ever done - this only controls how a number is DISPLAYED.
+  // "en-IN" is used purely for digit grouping (1,00,000), which Nepal shares.
+  // To change the label (e.g. "Rs."), change CURRENCY.label here only.
+  const CURRENCY = Object.freeze({ code: "NPR", label: "NPR", locale: "en-IN" });
+
+  const formatPrice = (amount) => {
+    const n = Number(amount);
+    const safe = Number.isFinite(n) ? n : 0;
+    return `${CURRENCY.label} ${safe.toLocaleString(CURRENCY.locale, { maximumFractionDigits: 2 })}`;
+  };
+
+  // ---- Business contact (Phase 1: fixed; Phase 2: admin-managed settings) ----
+  // Do NOT hard-code the WhatsApp number anywhere else in the frontend.
+  const BUSINESS = Object.freeze({ whatsappNumber: "9779700013011" });
+
+  const getWhatsAppUrl = (text) =>
+    `https://wa.me/${BUSINESS.whatsappNumber}${text ? `?text=${encodeURIComponent(text)}` : ""}`;
+
   return Object.freeze({
     IS_LOCAL_DEVELOPMENT,
     API_BASE_URL,
     FRONTEND_BASE_URL,
+    CURRENCY,
+    BUSINESS,
     getUrl,
     getPath,
+    formatPrice,
+    getWhatsAppUrl,
   });
 })();
 

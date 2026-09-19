@@ -26,11 +26,11 @@
               <p class="field-error" id="errorName"></p>
             </div>
             <div>
-              <input type="tel" id="userPhone" placeholder="WhatsApp Number (e.g., 98xxxxxxxx)" required pattern="(98|97)[0-9]{8}" />
+              <input type="tel" id="userPhone" placeholder="Mobile Number (e.g., 98XXXXXXXX)" required inputmode="tel" autocomplete="tel" />
               <p class="field-error" id="errorPhone"></p>
             </div>
             <div>
-              <textarea id="userAddress" placeholder="Full Delivery Address (House No, Street, City, Pincode)" rows="3" required></textarea>
+              <textarea id="userAddress" placeholder="Full Delivery Address (Tole/Area, Ward No., Municipality, Landmark)" rows="3" required></textarea>
               <p class="field-error" id="errorAddress"></p>
             </div>
           </div>
@@ -62,17 +62,17 @@
         <div class="checkout-card sticky-summary" id="summaryTarget">
           <h3>Price Details</h3>
           <div id="priceSummary" class="price-details-box"></div>
-          <button class="btn-continue" id="checkoutBtn">PLACE ORDER VIA WHATSAPP</button>
+          <button class="btn-continue" id="checkoutBtn">PLACE ORDER</button>
         </div>
       </div>
     </main>
 
     <div class="mobile-bottom-bar">
       <div class="price-info">
-        <span class="final-price" id="mobileTotalAmount">₹0</span>
+        <span class="final-price" id="mobileTotalAmount">NPR 0</span>
         <span class="view-details" onclick="document.getElementById('summaryTarget').scrollIntoView({ behavior: 'smooth' })">View Details</span>
       </div>
-      <button class="mobile-place-order" id="mobileCheckoutBtn">CONTINUE</button>
+      <button class="mobile-place-order" id="mobileCheckoutBtn">PLACE ORDER</button>
     </div>
 
     <div id="orderOverlay" class="order-overlay" style="display: none">

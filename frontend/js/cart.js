@@ -3,13 +3,7 @@
  * Same visual markup/classes as before - only the data layer changed, from
  * raw localStorage to CartState (which itself branches guest vs server).
  */
-function formatINR(amount) {
-  return Number(amount || 0).toLocaleString("en-IN", {
-    maximumFractionDigits: 0,
-    style: "currency",
-    currency: "INR",
-  });
-}
+const formatNPR = (amount) => UniMartConfig.formatPrice(amount);
 
 async function loadCart() {
   const cartContainer = document.getElementById("cartItems");
@@ -79,8 +73,8 @@ async function loadCart() {
           ${item.available === false ? '<p class="unavailable-msg">No longer available</p>' : ""}
           ${stars}
           <div class="price-row">
-            <span class="price">${formatINR(item.price)}</span>
-            ${item.oldPrice ? `<span class="old-price">${formatINR(item.oldPrice)}</span>` : ""}
+            <span class="price">${formatNPR(item.price)}</span>
+            ${item.oldPrice ? `<span class="old-price">${formatNPR(item.oldPrice)}</span>` : ""}
             ${item.discount ? `<span class="discount-tag">${item.discount}% OFF</span>` : ""}
           </div>
         </div>
@@ -102,22 +96,26 @@ async function loadCart() {
     cartContainer.appendChild(div);
   });
 
-  const delivery = subtotal > 500 ? 0 : 40;
-  const grandTotal = subtotal + delivery;
+  // Delivery is NOT calculated in the browser. The old placeholder rule (free
+  // above 500, otherwise 40) was never applied by the server, so customers saw
+  // a total the order never used. Business-controlled delivery rules arrive
+  // with the Phase 2 settings system.
+  const grandTotal = subtotal;
+  const savings = originalTotal - subtotal;
 
   if (totalPriceEl) {
     totalPriceEl.innerHTML = `
-      <div class="summary-line"><span>Price (${items.length} items)</span><span>${formatINR(subtotal)}</span></div>
-      <div class="summary-line"><span>Delivery Charges</span><span>${delivery === 0 ? '<span class="free">FREE</span>' : formatINR(delivery)}</span></div>
+      <div class="summary-line"><span>Price (${items.length} items)</span><span>${formatNPR(subtotal)}</span></div>
+      <div class="summary-line"><span>Delivery Charges</span><span class="delivery-note">To be confirmed</span></div>
       <hr>
-      <div class="summary-line total"><span>Total Amount</span><span>${formatINR(grandTotal)}</span></div>
-      <div class="savings-msg">You will save ${formatINR(originalTotal - subtotal + (delivery === 0 ? 40 : 0))} on this order</div>
+      <div class="summary-line total"><span>Items Total</span><span>${formatNPR(grandTotal)}</span></div>
+      ${savings > 0 ? `<div class="savings-msg">You will save ${formatNPR(savings)} on this order</div>` : ""}
     `;
   }
 
   if (totalOldPriceEl && totalFinalPriceEl) {
-    totalOldPriceEl.innerHTML = originalTotal > subtotal ? `<del>${formatINR(originalTotal + delivery)}</del>` : "";
-    totalFinalPriceEl.textContent = formatINR(grandTotal);
+    totalOldPriceEl.innerHTML = savings > 0 ? `<del>${formatNPR(originalTotal)}</del>` : "";
+    totalFinalPriceEl.textContent = formatNPR(grandTotal);
   }
 
   const placeOrderBtn = document.querySelector(".btn-checkout");
@@ -127,8 +125,13 @@ async function loadCart() {
 }
 
 async function changeQty(productId, newQuantity) {
-  await CartState.updateQuantity(productId, newQuantity);
-  window.updateCartBadge?.();
+  try {
+    await CartState.updateQuantity(productId, newQuantity);
+    window.updateCartBadge?.();
+  } catch (error) {
+    // e.g. "Only 3 in stock" - tell the customer instead of failing silently
+    window.showToast?.(error.message || "Could not update quantity");
+  }
   loadCart();
 }
 

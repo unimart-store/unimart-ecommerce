@@ -84,9 +84,25 @@ exports.addItem = async (req, res, next) => {
     if (!product) {
       return res.status(400).json({ success: false, message: "Invalid product" });
     }
+    if (product.status !== "active") {
+      return res.status(400).json({ success: false, message: "This product is not available" });
+    }
 
     const cart = await getOrCreateCart(req.user._id);
     const existingItem = cart.items.find((item) => item.product.toString() === productId);
+
+    // Stock limit: the cart can never be pushed past what is in stock right
+    // now. (Checkout still re-verifies atomically - this is the early, friendly
+    // check so the customer learns about it at "Add to Cart", not at payment.)
+    const wantedInCart = (existingItem ? existingItem.quantity : 0) + numericQuantity;
+    if (wantedInCart > product.stockQuantity) {
+      return res.status(409).json({
+        success: false,
+        message: product.stockQuantity > 0
+          ? `Only ${product.stockQuantity} in stock`
+          : "This product is out of stock",
+      });
+    }
 
     if (existingItem) {
       existingItem.quantity = Math.min(existingItem.quantity + numericQuantity, MAX_QUANTITY_PER_ITEM);
@@ -128,6 +144,20 @@ exports.updateItemQuantity = async (req, res, next) => {
 
     if (!existingItem) {
       return res.status(404).json({ success: false, message: "Item not found in cart" });
+    }
+
+    // Increasing past current stock is refused. Lowering is always allowed,
+    // even if stock has since dropped below what is already in the cart.
+    if (numericQuantity > existingItem.quantity) {
+      const product = await Product.findById(req.params.productId).select("stockQuantity");
+      if (product && numericQuantity > product.stockQuantity) {
+        return res.status(409).json({
+          success: false,
+          message: product.stockQuantity > 0
+            ? `Only ${product.stockQuantity} in stock`
+            : "This product is out of stock",
+        });
+      }
     }
 
     existingItem.quantity = numericQuantity;

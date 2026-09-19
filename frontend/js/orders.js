@@ -6,9 +6,7 @@ const OrderStatusColors = {
   Cancelled: "#d32f2f",
 };
 
-function formatINR(amount) {
-  return Number(amount || 0).toLocaleString("en-IN", { maximumFractionDigits: 0, style: "currency", currency: "INR" });
-}
+const formatNPR = (amount) => UniMartConfig.formatPrice(amount);
 
 function formatDate(dateString) {
   return new Date(dateString).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
@@ -41,7 +39,7 @@ async function renderOrderList() {
         <span class="order-status" style="background:${OrderStatusColors[order.status] || "#999"}">${order.status}</span>
       </div>
       <p class="order-meta">Placed: ${formatDate(order.createdAt)} · ${order.items.length} item${order.items.length === 1 ? "" : "s"}</p>
-      <p class="order-total">${formatINR(order.totalAmount)}</p>
+      <p class="order-total">${formatNPR(order.totalAmount)}</p>
     </a>
   `).join("");
 }
@@ -68,11 +66,11 @@ async function renderOrderDetail(id) {
       ${order.items.map((item) => `
         <div class="order-item-row">
           <span>${item.name} × ${item.quantity}</span>
-          <span>${formatINR(item.price * item.quantity)}</span>
+          <span>${formatNPR(item.price * item.quantity)}</span>
         </div>
       `).join("")}
       <hr>
-      <div class="order-item-row order-total-row"><span>Total</span><span>${formatINR(order.totalAmount)}</span></div>
+      <div class="order-item-row order-total-row"><span>Total</span><span>${formatNPR(order.totalAmount)}</span></div>
       <p class="order-meta">Delivery to: ${order.customerAddress}</p>
       ${order.status === "Pending" ? `
         <div id="cancelOrderArea">

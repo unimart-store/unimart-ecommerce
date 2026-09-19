@@ -24,13 +24,13 @@
 
     if (productPrice) {
         productPrice.textContent =
-            `Rs. ${price.toLocaleString("en-NP")}`;
+            UniMartConfig.formatPrice(price);
     }
 
     if (oldPrice) {
         oldPrice.textContent =
             product.oldPrice
-                ? `Rs. ${product.oldPrice.toLocaleString("en-NP")}`
+                ? UniMartConfig.formatPrice(product.oldPrice)
                 : "";
     }
 

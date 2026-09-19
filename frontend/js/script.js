@@ -60,8 +60,8 @@
         <h3 class="product-title">${p.name}</h3>
         <p class="short-desc">${(p.description || "").slice(0, 60)}</p>
         <div class="price-row">
-          <span class="price">₹${p.price}</span>
-          ${p.oldPrice ? `<span class="old-price">₹${p.oldPrice}</span>` : ""}
+          <span class="price">${UniMartConfig.formatPrice(p.price)}</span>
+          ${p.oldPrice ? `<span class="old-price">${UniMartConfig.formatPrice(p.oldPrice)}</span>` : ""}
           ${discount ? `<span class="discount">${discount}% OFF</span>` : ""}
         </div>
       </div>
@@ -165,6 +165,13 @@
     state.page = 1;
     load();
   };
+
+  // The nav "Order on WhatsApp" button had no link at all on this page (only the
+  // product page ever set it). Give it the same chat link as the footer.
+  const navWhatsappBtn = document.getElementById("whatsappBtn");
+  if (navWhatsappBtn) {
+    navWhatsappBtn.href = UniMartConfig.getWhatsAppUrl("Hello Unimart Team, I want to know more");
+  }
 
   load();
 })();

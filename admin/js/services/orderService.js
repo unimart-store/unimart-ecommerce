@@ -17,5 +17,15 @@ const AdminOrderService = {
 // backend independently re-validates and is the real source of truth.
 const ADMIN_ORDER_STATUSES = ["Pending", "Processing", "Shipped", "Delivered", "Cancelled"];
 
+const ADMIN_ORDER_TRANSITIONS = {
+  Pending: ["Processing", "Shipped", "Delivered", "Cancelled"],
+  Processing: ["Shipped", "Delivered", "Cancelled"],
+  Shipped: ["Delivered", "Cancelled"],
+  Delivered: [],
+  Cancelled: [],
+};
+
+
 window.AdminOrderService = AdminOrderService;
 window.ADMIN_ORDER_STATUSES = ADMIN_ORDER_STATUSES;
+window.ADMIN_ORDER_TRANSITIONS = ADMIN_ORDER_TRANSITIONS;

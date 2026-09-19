@@ -3,10 +3,13 @@
  */
 const AdminFormat = {
   currency: (amount) => {
-    const n = Number(amount);
-    if (Number.isNaN(n)) return "—";
-    return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n);
-  },
+     const n = Number(amount);
+     if (Number.isNaN(n)) return "—";
+   
+     return `NPR ${new Intl.NumberFormat("en-IN", {
+       maximumFractionDigits: 2,
+     }).format(n)}`;
+   },
 
   date: (isoString) => {
     if (!isoString) return "—";
