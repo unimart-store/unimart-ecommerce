@@ -10,84 +10,98 @@
     <link rel="stylesheet" href="../css/components.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
   </head>
-  <body>
-    <div class="checkout-header-mobile">
-      <button onclick="history.back()" class="back-btn" aria-label="Go Back"><i class="fa-solid fa-arrow-left"></i></button>
-      <h2>Order Summary</h2>
-    </div>
+  <body class="checkout-page">
+    <header class="checkout-header">
+      <div class="checkout-header__inner">
+        <a href="cart.html" class="co-back" aria-label="Back to cart">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6" /></svg>
+        </a>
+        <h1>Checkout</h1>
+      </div>
+    </header>
 
     <main class="checkout-container">
       <div class="checkout-left">
-        <section class="checkout-card" id="shippingForm">
-          <h3><i class="fa-solid fa-truck"></i> Shipping Details</h3>
-          <div class="form-group">
-            <div>
-              <input type="text" id="userName" placeholder="Your Full Name" required />
-              <p class="field-error" id="errorName"></p>
+        <!-- 1. Who and where -->
+        <section class="co-section" id="shippingForm" aria-labelledby="shippingHeading">
+          <h2 class="co-heading" id="shippingHeading">Delivery details</h2>
+          <div class="co-fields">
+            <div class="co-field">
+              <label class="co-label" for="userName">Full name</label>
+              <input class="co-input" type="text" id="userName" placeholder="e.g. Ram Bahadur Thapa" required autocomplete="name" aria-describedby="errorName" />
+              <p class="field-error" id="errorName" role="alert"></p>
             </div>
-            <div>
-              <input type="tel" id="userPhone" placeholder="Mobile Number (e.g., 98XXXXXXXX)" required inputmode="tel" autocomplete="tel" />
-              <p class="field-error" id="errorPhone"></p>
+            <div class="co-field">
+              <label class="co-label" for="userPhone">Mobile number</label>
+              <input class="co-input" type="tel" id="userPhone" placeholder="98XXXXXXXX" required inputmode="tel" autocomplete="tel" aria-describedby="errorPhone" />
+              <p class="field-error" id="errorPhone" role="alert"></p>
             </div>
-            <div>
-              <textarea id="userAddress" placeholder="Full Delivery Address (Tole/Area, Ward No., Municipality, Landmark)" rows="3" required></textarea>
-              <p class="field-error" id="errorAddress"></p>
+            <div class="co-field co-field--full">
+              <label class="co-label" for="userAddress">Full delivery address</label>
+              <textarea class="co-input co-textarea" id="userAddress" placeholder="Tole / area, ward no., municipality, nearby landmark" rows="3" required autocomplete="street-address" aria-describedby="errorAddress"></textarea>
+              <p class="field-error" id="errorAddress" role="alert"></p>
             </div>
-            <!-- Shown only when the owner has configured delivery areas (Admin -> Settings -> Delivery) -->
-            <div id="deliveryAreaBox" hidden>
-              <select id="deliveryArea" aria-label="Delivery area"></select>
-              <p class="field-error" id="errorArea"></p>
-            </div>
-            <p class="delivery-notice" id="deliveryNotice" hidden></p>
           </div>
         </section>
 
-        <section class="checkout-card" id="paymentMethodArea">
-          <h3><i class="fa-solid fa-credit-card"></i> Payment Method</h3>
-          <div class="payment-options" id="paymentOptions">
-            <label class="payment-card-option">
-              <input type="radio" name="payment" value="whatsapp" checked />
-              <div class="pay-info">
-                <strong>WhatsApp Order</strong>
-                <p>Confirm & Pay manually on WhatsApp</p>
-              </div>
-              <i class="fa-brands fa-whatsapp whatsapp-icon"></i>
-            </label>
-            <label class="payment-card-option disabled">
-              <input type="radio" name="payment" value="esewa" disabled />
-              <div class="pay-info">
-                <strong>eSewa Wallet</strong>
-                <p>Coming Soon (Service Unavailable)</p>
-              </div>
+        <!-- 2. Delivery area: shown only when the owner has configured areas (Admin -> Settings -> Delivery) -->
+        <section class="co-section" id="deliveryAreaBox" aria-labelledby="areaHeading" hidden>
+          <h2 class="co-heading" id="areaHeading">Delivery area</h2>
+          <div class="co-field">
+            <label class="co-label" for="deliveryArea">Where should we deliver?</label>
+            <div class="co-select">
+              <select id="deliveryArea" required aria-describedby="areaHint errorArea"></select>
+            </div>
+            <p class="co-hint" id="areaHint" aria-live="polite"></p>
+            <p class="field-error" id="errorArea" role="alert"></p>
+          </div>
+        </section>
+        <p class="co-notice" id="deliveryNotice" role="status" hidden></p>
+
+        <!-- 3. Payment: only methods the owner has enabled are ever listed -->
+        <section class="co-section" id="paymentMethodArea" aria-labelledby="paymentHeading">
+          <h2 class="co-heading" id="paymentHeading">Payment method</h2>
+          <div class="co-pay-list" id="paymentOptions" role="radiogroup" aria-labelledby="paymentHeading">
+            <label class="pay-option">
+              <input type="radio" name="payment" value="whatsapp" data-method="WhatsApp" checked />
+              <span class="pay-card">
+                <span class="pay-icon" aria-hidden="true"><i class="fa-brands fa-whatsapp"></i></span>
+                <span class="pay-info">
+                  <strong>WhatsApp Order</strong>
+                  <span>Confirm &amp; pay manually on WhatsApp</span>
+                </span>
+                <span class="pay-check" aria-hidden="true"></span>
+              </span>
             </label>
           </div>
         </section>
       </div>
 
-      <div class="checkout-right">
-        <div class="checkout-card sticky-summary" id="summaryTarget">
-          <h3>Price Details</h3>
-          <div id="priceSummary" class="price-details-box"></div>
-          <button class="btn-continue" id="checkoutBtn">PLACE ORDER</button>
+      <aside class="checkout-right" aria-label="Order summary">
+        <div class="co-summary-card sticky-summary" id="summaryTarget" tabindex="-1">
+          <h2 class="co-heading">Order summary</h2>
+          <div id="priceSummary" class="price-details-box" aria-live="polite"></div>
+          <button class="co-btn co-btn--primary" id="checkoutBtn" type="button">Place Order</button>
         </div>
-      </div>
+      </aside>
     </main>
 
     <div class="mobile-bottom-bar">
       <div class="price-info">
+        <span class="price-info__label">Total</span>
         <span class="final-price" id="mobileTotalAmount">NPR 0</span>
-        <span class="view-details" onclick="document.getElementById('summaryTarget').scrollIntoView({ behavior: 'smooth' })">View Details</span>
+        <button type="button" class="view-details" onclick="document.getElementById('summaryTarget').scrollIntoView({ behavior: 'smooth', block: 'center' })">View details</button>
       </div>
-      <button class="mobile-place-order" id="mobileCheckoutBtn">PLACE ORDER</button>
+      <button class="co-btn co-btn--primary" id="mobileCheckoutBtn" type="button">Place Order</button>
     </div>
 
-    <div id="orderOverlay" class="order-overlay" style="display: none">
+    <div id="orderOverlay" class="order-overlay" style="display: none" role="status" aria-live="polite">
       <div class="overlay-content">
-        <div class="loader"></div>
-        <p>Processing your order...</p>
+        <div class="loader" aria-hidden="true"></div>
+        <p>Placing your order…</p>
       </div>
     </div>
-    <div id="toast" class="toast"></div>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
     <script src="../js/config.js"></script>
     <script src="../js/utils/toast.js"></script>

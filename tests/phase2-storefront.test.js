@@ -149,10 +149,10 @@ test("area picker appears when the owner configured areas; unavailable areas are
 test("choosing an area shows the SERVER's fee and total (paid, and free)", async () => {
   const sf = await boot();
   await sf.chooseArea("bbbbbbbb22");
-  assert.match(sf.summary(), /Delivery \(Kathmandu\)/); assert.match(sf.summary(), /NPR 250/); assert.match(sf.summary(), /Total Amount<\/span><span>NPR 750/);
+  assert.match(sf.summary(), /<dt>Delivery<span class="co-sub">Kathmandu<\/span><\/dt><dd>NPR 250<\/dd>/); assert.match(sf.summary(), /<dt>Total<\/dt><dd>NPR 750<\/dd>/);
   assert.equal(sf.getEl("mobileTotalAmount").textContent, "NPR 750");
   await sf.chooseArea("aaaaaaaa11");
-  assert.match(sf.summary(), /FREE/); assert.match(sf.summary(), /NPR 500/);
+  assert.match(sf.summary(), /co-value--free">Free</); assert.match(sf.summary(), /<dt>Total<\/dt><dd>NPR 500<\/dd>/);
   assert.doesNotMatch(sf.summary(), /undefined|₹|INR/);
   assert.deepEqual(JSON.parse(JSON.stringify(sf.quotes.at(-1))), { areaId: "aaaaaaaa11", items: [{ productId: "p1", quantity: 2 }] }, "quote request carries only area + items, never a price");
 });
@@ -212,7 +212,7 @@ test("no areas configured / settings unavailable = Phase 1 behaviour (no picker,
   for (const settings of [settingsWith({ delivery: { enabled: true, areas: [] } }), null]) {
     const sf = await boot({ settings, quote: () => ({ deliverable: true, subtotal: 500, delivery: { mode: "manual", fee: 0 }, total: 500 }) });
     assert.equal(sf.getEl("deliveryAreaBox").hidden === false && settings !== null && settings.delivery.areas.length > 0, false);
-    assert.match(sf.summary(), /To be confirmed/); assert.match(sf.summary(), /Items Total/);
+    assert.match(sf.summary(), /To be confirmed/); assert.match(sf.summary(), /excl\. delivery/);
     await sf.submit();
     assert.equal(sf.placed.length, 1); assert.equal("deliveryAreaId" in sf.placed[0].contact, false);
   }
@@ -231,7 +231,7 @@ test("out-of-order quote responses cannot overwrite a newer choice", async () =>
   const slow = sf.chooseArea("bbbbbbbb22");             // slow response for Kathmandu
   await sf.chooseArea("aaaaaaaa11");                    // customer changes their mind: local
   release(); await slow;
-  assert.match(sf.summary(), /FREE/); assert.doesNotMatch(sf.summary(), /NPR 250/);
+  assert.match(sf.summary(), /co-value--free">Free</); assert.doesNotMatch(sf.summary(), /NPR 250/);
 });
 
 test("payment options follow the owner's settings; COD is sent as 'Cash on Delivery'", async () => {
@@ -253,7 +253,7 @@ test("confirmation shows the server's breakdown; WhatsApp button only when a num
   const sf = await boot();
   await sf.chooseArea("bbbbbbbb22"); await sf.submit();
   const html = sf.container.innerHTML;
-  assert.match(html, /ORD-9/); assert.match(html, /Items: <strong>NPR 500/); assert.match(html, /Delivery \(Kathmandu\): <strong>NPR 250/); assert.match(html, /Total: <strong>NPR 750/);
+  assert.match(html, /ORD-9/); assert.match(html, /<dt>Subtotal<\/dt><dd>NPR 500<\/dd>/); assert.match(html, /<dt>Delivery<span class="co-sub">Kathmandu<\/span><\/dt><dd>NPR 250<\/dd>/); assert.match(html, /<dt>Total<\/dt><dd>NPR 750<\/dd>/);
   assert.match(html, /sendWhatsappBtn/); assert.doesNotMatch(html, /undefined|₹|INR/);
   const none = await boot({ noWhatsapp: true }); await none.chooseArea("bbbbbbbb22"); await none.submit();
   assert.doesNotMatch(none.container.innerHTML, /sendWhatsappBtn/);
@@ -262,7 +262,7 @@ test("confirmation shows the server's breakdown; WhatsApp button only when a num
 test("confirmation for an order without a subtotal (legacy shape) shows only its total", async () => {
   const sf = await boot({ placeOrder: async () => ({ _id: "o", orderId: "ORD-OLD", totalAmount: 1000 }) });
   await sf.chooseArea("bbbbbbbb22"); await sf.submit();
-  assert.match(sf.container.innerHTML, /Total: <strong>NPR 1,000/); assert.doesNotMatch(sf.container.innerHTML, /Delivery/);
+  assert.match(sf.container.innerHTML, /<dt>Total<\/dt><dd>NPR 1,000<\/dd>/); assert.doesNotMatch(sf.container.innerHTML, /Delivery/);
 });
 
 test("idempotency key changes when the delivery area or payment method changes", async () => {

@@ -27,7 +27,10 @@ const makeEl = (id) => {
     children: [],
     appendChild(child) { this.children.push(child); return child; },
     dataset: {},
-    removeAttribute(name) { if (name === "href") delete this.href; },
+    attrs: {},
+    setAttribute(name, value) { this.attrs[name] = String(value); },
+    getAttribute(name) { return name in this.attrs ? this.attrs[name] : null; },
+    removeAttribute(name) { delete this.attrs[name]; if (name === "href") delete this.href; },
     closest() { return null; },
   };
   return el;

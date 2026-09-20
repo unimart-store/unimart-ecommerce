@@ -1,391 +1,759 @@
 /* ==========================================================================
-   1. VARIABLES & RESET
+   UNiMART - Checkout page
+   Mobile-first. Layout breakpoints: default (<640) -> 640 tablet -> 900 desktop.
+   Uses the shared brand tokens from tokens.css (amber accent, WhatsApp green);
+   everything else below is neutral. No new palette, no dependencies.
    ========================================================================== */
-:root {
-    /* Renamed from --primary-color: that name collided with the site's
-       actual brand primary (orange) while holding WhatsApp green instead -
-       a landmine for anyone reading it. Now explicitly named and aliased
-       to the shared token. */
-    --whatsapp-color: var(--brand-whatsapp);
-    --flipkart-blue: #2874f0;
-    --flipkart-orange: var(--brand-primary);
-    --text-dark: var(--text-primary);
-    --text-light: var(--text-muted);
-    --bg-gray: var(--surface-page);
-    --shadow: var(--shadow-sm);
+
+/* 1. Local design tokens ---------------------------------------------------- */
+.checkout-page {
+    --co-bg: #f8f6f2;              /* warm neutral page */
+    --co-surface: #ffffff;
+    --co-text: var(--text-primary, #212121);
+    --co-muted: #5c6169;           /* secondary text, 6:1 on white */
+    --co-line: #e8e4dc;            /* hairlines between sections */
+    --co-control: #8f959d;         /* input / option borders, 3:1 on white */
+    --co-accent: var(--brand-primary, #f59e0b);
+    --co-accent-hover: var(--brand-primary-hover, #d97706);
+    --co-accent-strong: #b45309;   /* accent for borders, focus, links (5:1 on white) */
+    --co-accent-soft: #fff7e6;
+    --co-error: #c62828;
+    --co-error-soft: #fff6f5;
+    --co-success: var(--status-success, #1a7f37);
+    --co-radius: 12px;
+    --co-radius-sm: 10px;
+    --co-s1: 4px;
+    --co-s2: 8px;
+    --co-s3: 12px;
+    --co-s4: 16px;
+    --co-s5: 24px;
+    --co-s6: 32px;
+    --co-bar-h: 96px;              /* sticky mobile bar + breathing room */
+
+    background: var(--co-bg);
+    color: var(--co-text);
+    font-size: 16px;
+    line-height: 1.5;
+    -webkit-text-size-adjust: 100%;
 }
 
-body {
-    background-color: var(--bg-gray);
-    font-family: Roboto, Arial, sans-serif;
-    margin: 0;
+.checkout-page [hidden] {
+    display: none !important;
 }
 
-/* ==========================================================================
-   2. LAYOUT
-   ========================================================================== */
-.checkout-container {
+/* 2. Header ----------------------------------------------------------------- */
+.checkout-header {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    background: var(--co-surface);
+    border-bottom: 1px solid var(--co-line);
+}
+
+.checkout-header__inner {
     display: flex;
-    gap: 16px;
-    padding: 20px;
-    max-width: 1100px;
+    align-items: center;
+    gap: var(--co-s2);
+    max-width: 1080px;
+    height: 56px;
     margin: 0 auto;
+    padding: 0 var(--co-s4);
 }
 
-.checkout-left {
-    flex: 2;
-}
-
-.checkout-right {
-    flex: 1;
-}
-
-/* ==========================================================================
-   3. COMPONENTS (Cards & Forms)
-   ========================================================================== */
-.checkout-card {
-    background: #fff;
-    padding: 24px;
-    border-radius: 4px;
-    margin-bottom: 16px;
-    box-shadow: var(--shadow);
-}
-
-.checkout-card h3 {
+.checkout-header h1 {
     font-size: 18px;
-    font-weight: 500;
-    margin-bottom: 20px;
-    text-transform: uppercase;
-    color: var(--text-light);
-    display: flex;
-    align-items: center;
-    gap: 10px;
+    font-weight: 600;
+    line-height: 1;
 }
 
-.form-group {
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
+.co-back {
+    display: inline-grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    margin-left: -12px;
+    border-radius: 50%;
+    color: var(--co-text);
+    transition: background-color 0.15s;
 }
 
-.form-group input,
-.form-group textarea {
-    padding: 15px;
-    border: 1px solid #e0e0e0;
-    border-radius: 4px;
-    font-size: 14px;
-    outline: none;
-    transition: border-color 0.2s;
+.co-back:hover {
+    background: var(--co-bg);
 }
 
-.form-group input:focus,
-.form-group textarea:focus {
-    border-color: var(--flipkart-blue);
+.co-back:focus-visible,
+.view-details:focus-visible {
+    outline: 3px solid var(--co-accent-strong);
+    outline-offset: 2px;
 }
 
-/* ==========================================================================
-   4. PAYMENT OPTIONS
-   ========================================================================== */
-.payment-options {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
+/* 3. Layout (mobile: single column, full-bleed sections) ---------------------- */
+.checkout-container {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--co-s3);
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: var(--co-s3) 0 calc(var(--co-bar-h) + env(safe-area-inset-bottom));
 }
 
-.payment-card-option {
-    display: flex;
-    align-items: center;
-    border: 1px solid #e0e0e0;
-    padding: 16px;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: 0.2s;
-    position: relative;
+.checkout-left,
+.co-summary-card {
+    background: var(--co-surface);
+    border-top: 1px solid var(--co-line);
+    border-bottom: 1px solid var(--co-line);
 }
 
-.payment-card-option:hover {
-    background: #f9f9f9;
+.co-section {
+    padding: var(--co-s5) var(--co-s4);
 }
 
-.payment-card-option input[type="radio"] {
-    width: 18px;
-    height: 18px;
-    margin-right: 15px;
-    accent-color: var(--whatsapp-color);
+.co-section:not(:first-child) {
+    border-top: 1px solid var(--co-line);
 }
 
-.pay-info strong {
+.co-heading {
+    margin-bottom: var(--co-s4);
+    font-size: 17px;
+    font-weight: 600;
+    line-height: 1.3;
+}
+
+/* 4. Form fields -------------------------------------------------------------- */
+.co-fields {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--co-s4);
+}
+
+.co-field--full {
+    grid-column: 1 / -1;
+}
+
+.co-label {
     display: block;
+    margin-bottom: 6px;
     font-size: 14px;
-    color: var(--text-dark);
+    font-weight: 500;
 }
 
-.pay-info p {
-    font-size: 12px;
-    color: var(--text-light);
+.co-input,
+.co-select select {
+    display: block;
+    width: 100%;
+    min-height: 48px;
+    padding: 12px 14px;
+    font-size: 16px; /* 16px stops iOS zooming into the field */
+    line-height: 1.4;
+    color: var(--co-text);
+    background-color: var(--co-surface);
+    border: 1px solid var(--co-control);
+    border-radius: var(--co-radius-sm);
+    -webkit-appearance: none;
+    appearance: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
 }
 
-.whatsapp-icon {
-    margin-left: auto;
-    color: var(--whatsapp-color);
-    font-size: 1.5rem;
+.co-input::placeholder {
+    color: #6b7078;
+    opacity: 1;
 }
 
-.payment-card-option.disabled {
-    opacity: 0.5;
-    background: #f5f5f5;
-    cursor: not-allowed;
+.co-textarea {
+    min-height: 96px;
+    resize: vertical;
 }
 
-.form-group input.invalid,
-.form-group textarea.invalid {
-    border-color: #d32f2f;
-    background: #fff5f5;
+.co-input:hover,
+.co-select select:hover {
+    border-color: #5c6169;
+}
+
+.co-input:focus,
+.co-select select:focus {
+    outline: none;
+    border-color: var(--co-accent-strong);
+    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.32);
+}
+
+/* Delivery area: a styled select, still a real <select> (native keyboard + mobile pickers) */
+.co-select select {
+    min-height: 52px;
+    padding-right: 44px;
+    font-weight: 500;
+    cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%23212121' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    background-size: 20px;
+    text-overflow: ellipsis;
+}
+
+.co-select select:required:invalid {
+    color: #6b7078;
+    font-weight: 400;
+}
+
+/* A chosen area is obvious at a glance */
+.co-select select:required:valid {
+    border-color: var(--co-accent-strong);
+    background-color: var(--co-accent-soft);
+}
+
+/* Error state: colour + icon + message, never colour alone */
+.co-input.invalid,
+.co-input[aria-invalid="true"],
+.co-select select.invalid,
+.co-select select[aria-invalid="true"] {
+    border-color: var(--co-error);
+    background-color: var(--co-error-soft);
+    box-shadow: inset 0 0 0 1px var(--co-error);
 }
 
 .field-error {
-    color: #d32f2f;
-    font-size: 0.8rem;
-    margin: 4px 0 0;
     display: none;
+    margin: 6px 0 0;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1.4;
+    color: var(--co-error);
 }
 
 .field-error.show {
-    display: block;
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
 }
 
-.form-group select {
-    width: 100%;
-    padding: 12px;
-    border: 1px solid #e0e0e0;
-    border-radius: 2px;
-    font-size: 15px;
-    background: #fff;
+.field-error.show::before {
+    content: "!";
+    flex: 0 0 auto;
+    display: inline-grid;
+    place-items: center;
+    width: 16px;
+    height: 16px;
+    margin-top: 1px;
+    border-radius: 50%;
+    background: var(--co-error);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1;
 }
 
-.form-group select.invalid {
-    border-color: #d32f2f;
-    background: #fff5f5;
+.co-hint {
+    margin: 8px 0 0;
+    font-size: 14px;
+    color: var(--co-muted);
 }
 
-.delivery-notice {
+.co-hint:empty {
+    display: none;
+}
+
+/* Delivery notices (delivery switched off / area not deliverable) */
+.co-notice {
+    display: flex;
+    gap: 10px;
     margin: 0;
-    padding: 10px 12px;
-    font-size: 0.9rem;
-    color: #b26a00;
-    background: #fff8e1;
-    border: 1px solid #ffe0a3;
-    border-radius: 4px;
+    padding: 14px var(--co-s4);
+    font-size: 14px;
+    line-height: 1.5;
+    color: #7a4a00;
+    background: var(--co-accent-soft);
+    border-top: 1px solid #f3d9a4;
+    border-bottom: 1px solid #f3d9a4;
 }
 
-.delivery-notice[hidden] { display: none; }
+.co-notice::before {
+    content: "i";
+    flex: 0 0 auto;
+    display: inline-grid;
+    place-items: center;
+    width: 18px;
+    height: 18px;
+    margin-top: 1px;
+    border-radius: 50%;
+    background: #7a4a00;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    font-style: italic;
+}
 
-/* ==========================================================================
-   5. PRICE SUMMARY
-   ========================================================================== */
-.sticky-summary {
-    position: sticky;
-    top: 80px;
+.co-notice--inline {
+    border: 1px solid #f3d9a4;
+    border-radius: var(--co-radius-sm);
+}
+
+/* 5. Payment options (only enabled methods are ever rendered) ------------------ */
+.co-pay-list {
+    display: grid;
+    gap: var(--co-s3);
+}
+
+.pay-option {
+    position: relative;
+    display: block;
+    cursor: pointer;
+}
+
+/* Visually hidden but still focusable/operable: real radio semantics */
+.pay-option input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: 0;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.pay-card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px var(--co-s4);
+    background: var(--co-surface);
+    border: 1px solid var(--co-control);
+    border-radius: var(--co-radius-sm);
+    transition: border-color 0.15s, background-color 0.15s, box-shadow 0.15s;
+}
+
+.pay-option:hover .pay-card {
+    border-color: #5c6169;
+}
+
+.pay-option input:checked + .pay-card {
+    border-color: var(--co-accent-strong);
+    background: var(--co-accent-soft);
+    box-shadow: 0 0 0 1px var(--co-accent-strong);
+}
+
+.pay-option input:focus-visible + .pay-card {
+    outline: 3px solid rgba(180, 83, 9, 0.5);
+    outline-offset: 2px;
+}
+
+.pay-icon {
+    flex: 0 0 40px;
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border-radius: var(--co-radius-sm);
+    background: var(--brand-whatsapp, #25d366);
+    color: #fff;
+    font-size: 22px;
+}
+
+.pay-icon--cod {
+    background: var(--co-text);
+    font-size: 18px;
+}
+
+.pay-info {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.pay-info strong {
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1.3;
+}
+
+.pay-info span {
+    font-size: 13px;
+    line-height: 1.4;
+    color: var(--co-muted);
+}
+
+.pay-check {
+    position: relative;
+    flex: 0 0 22px;
+    width: 22px;
+    height: 22px;
+    border: 2px solid var(--co-control);
+    border-radius: 50%;
+    background: var(--co-surface);
+}
+
+.pay-check::after {
+    content: "";
+    position: absolute;
+    left: 6px;
+    top: 2px;
+    width: 5px;
+    height: 10px;
+    border: solid #fff;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+    opacity: 0;
+}
+
+.pay-option input:checked + .pay-card .pay-check {
+    border-color: var(--co-accent-strong);
+    background: var(--co-accent-strong);
+}
+
+.pay-option input:checked + .pay-card .pay-check::after {
+    opacity: 1;
+}
+
+/* 6. Order summary ---------------------------------------------------------------- */
+.co-summary-card {
+    padding: var(--co-s5) var(--co-s4);
 }
 
 .price-details-box {
-    border-top: 1px solid #f0f0f0;
-    padding-top: 15px;
+    margin-bottom: var(--co-s4);
 }
 
-.price-row {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 15px;
-    font-size: 16px;
-}
-
-.price-row.total {
-    border-top: 1px dashed #e0e0e0;
-    padding-top: 20px;
-    margin-top: 20px;
-    font-weight: 600;
-    font-size: 18px;
-    color: var(--text-dark);
-}
-
-.free { color: #388e3c; font-weight: bold; }
-.savings-text { color: #388e3c; font-size: 14px; font-weight: 500; }
-
-/* Desktop Button */
-.btn-continue {
-    width: 100%;
-    background: var(--flipkart-orange);
-    color: white;
-    border: none;
-    padding: 15px;
-    font-size: 16px;
-    font-weight: 600;
-    border-radius: 2px;
-    cursor: pointer;
-    margin-top: 20px;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.2);
-    transition: filter 0.15s ease, transform 0.05s ease;
-}
-.btn-continue:hover {
-    filter: brightness(0.94);
-}
-.btn-continue:active {
-    transform: scale(0.98);
-}
-.btn-continue:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-    filter: none;
-    transform: none;
-}
-.btn-continue:focus-visible {
-    outline: 3px solid #2563eb;
-    outline-offset: 2px;
-}
-
-/* ==========================================================================
-   6. OVERLAYS & LOADERS
-   ========================================================================== */
-.order-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(255,255,255,0.95);
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    z-index: 9999;
-}
-
-.loader {
-    width: 48px;
-    height: 48px;
-    border: 5px solid #f3f3f3;
-    border-top: 5px solid var(--flipkart-orange);
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-    to { transform: rotate(360deg); }
-}
-
-/* ==========================================================================
-   7. MOBILE NAVIGATION & STICKY BAR
-   ========================================================================== */
-.checkout-header-mobile {
-    display: none;
-    background: var(--flipkart-blue);
-    color: white;
-    padding: 12px 16px;
-    align-items: center;
-    gap: 16px;
-    position: sticky;
-    top: 0;
-    z-index: 1000;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-.checkout-header-mobile h2 {
-    font-size: 18px;
-    font-weight: 500;
+.co-summary {
     margin: 0;
 }
 
-.back-btn {
-    background: none;
-    border: none;
-    color: white;
-    font-size: 20px;
-    cursor: pointer;
-}
-
-.mobile-bottom-bar {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    background: #fff;
-    height: 60px;
-    display: none; /* Controlled by Media Query */
-    box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
-    z-index: 1001;
-    padding: 0 16px;
-    align-items: center;
-    justify-content: space-between;
-}
-
-.price-info {
+.co-row {
     display: flex;
-    flex-direction: column;
-}
-
-.final-price {
-    font-size: 18px;
-    font-weight: bold;
-    color: var(--text-dark);
-}
-
-.view-details {
-    font-size: 12px;
-    color: var(--flipkart-blue);
-    font-weight: 500;
-    cursor: pointer;
-}
-
-.mobile-place-order {
-    background: var(--flipkart-orange);
-    color: white;
-    border: none;
-    padding: 12px 25px;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: var(--co-s4);
+    padding: 10px 0;
     font-size: 15px;
-    font-weight: bold;
-    border-radius: 2px;
+}
+
+.co-row dt {
+    color: var(--co-muted);
+}
+
+.co-row dd {
+    margin: 0;
+    text-align: right;
+    font-weight: 500;
+    color: var(--co-text);
+    font-variant-numeric: tabular-nums;
+}
+
+.co-sub {
+    display: block;
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 1.4;
+    color: var(--co-muted);
+}
+
+.co-value--free {
+    font-weight: 600;
+    color: var(--co-success);
+}
+
+.co-value--tbc {
+    font-weight: 400;
+    color: var(--co-muted);
+}
+
+.co-row--total {
+    align-items: center;
+    margin-top: 6px;
+    padding-top: var(--co-s4);
+    border-top: 1px solid var(--co-line);
+}
+
+.co-row--total dt {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--co-text);
+}
+
+.co-row--total dd {
+    font-size: 24px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+}
+
+/* 7. Buttons -------------------------------------------------------------------------- */
+.co-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 52px;
+    padding: 0 var(--co-s5);
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1.2;
+    text-decoration: none;
+    border: 1px solid transparent;
+    border-radius: var(--co-radius-sm);
     cursor: pointer;
-    transition: filter 0.15s ease, transform 0.05s ease;
+    transition: background-color 0.15s, transform 0.05s;
 }
-.mobile-place-order:hover {
-    filter: brightness(0.94);
+
+.co-btn--primary {
+    background: var(--co-accent);
+    color: #1f1f1f; /* dark on amber: white on amber fails contrast */
 }
-.mobile-place-order:active {
-    transform: scale(0.97);
+
+.co-btn--primary:hover {
+    background: var(--co-accent-hover);
 }
-.mobile-place-order:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-    filter: none;
-    transform: none;
+
+.co-btn--secondary {
+    background: var(--co-surface);
+    color: var(--co-text);
+    border-color: var(--co-control);
 }
-.mobile-place-order:focus-visible {
-    outline: 3px solid #2563eb;
+
+.co-btn--secondary:hover {
+    background: var(--co-bg);
+}
+
+.co-btn:active {
+    transform: scale(0.99);
+}
+
+.co-btn:focus-visible {
+    outline: 3px solid #1f1f1f;
     outline-offset: 2px;
 }
 
-/* ==========================================================================
-   8. RESPONSIVE MEDIA QUERIES
-   ========================================================================== */
-@media (max-width: 768px) {
+.co-btn:disabled {
+    background: #e9e5dc;
+    color: #6b7078;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.co-summary-card .co-btn {
+    display: none; /* desktop CTA lives in the summary; on mobile the sticky bar has it */
+    width: 100%;
+}
+
+/* 8. Sticky mobile checkout bar ------------------------------------------------------------ */
+.mobile-bottom-bar {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 40;
+    display: flex;
+    align-items: center;
+    gap: var(--co-s4);
+    padding: var(--co-s3) max(var(--co-s4), calc((100vw - 720px) / 2)) calc(var(--co-s3) + env(safe-area-inset-bottom));
+    background: var(--co-surface);
+    border-top: 1px solid var(--co-line);
+    box-shadow: 0 -4px 16px rgba(33, 33, 33, 0.06);
+}
+
+.price-info {
+    display: grid;
+    flex: 0 0 auto;
+    min-width: 0;
+    line-height: 1.2;
+}
+
+.price-info__label {
+    font-size: 12px;
+    color: var(--co-muted);
+}
+
+.final-price {
+    font-size: 20px;
+    font-weight: 700;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+.view-details {
+    justify-self: start;
+    min-height: 24px;
+    padding: 2px 0;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--co-accent-strong);
+    text-decoration: underline;
+    background: none;
+    border: 0;
+    cursor: pointer;
+}
+
+.mobile-bottom-bar .co-btn {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 0 var(--co-s4);
+}
+
+/* Toast must clear the sticky bar */
+.checkout-page .toast {
+    bottom: calc(var(--co-bar-h) + env(safe-area-inset-bottom));
+    max-width: calc(100vw - 32px);
+    text-align: center;
+}
+
+/* 9. Loading overlay --------------------------------------------------------------------------- */
+.order-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.92);
+}
+
+.overlay-content {
+    text-align: center;
+}
+
+.overlay-content p {
+    margin-top: var(--co-s4);
+    font-size: 15px;
+    font-weight: 500;
+}
+
+.loader {
+    width: 44px;
+    height: 44px;
+    margin: 0 auto;
+    border: 4px solid #efe9dc;
+    border-top-color: var(--co-accent);
+    border-radius: 50%;
+    animation: co-spin 0.9s linear infinite;
+}
+
+@keyframes co-spin {
+    to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .loader { animation-duration: 2.4s; }
+    .co-btn, .co-input, .pay-card { transition: none; }
+}
+
+/* 10. Order confirmation (replaces the checkout grid after a successful order) ------------------ */
+.checkout-container .order-confirmation {
+    grid-column: 1 / -1;
+    width: 100%;
+    max-width: 520px;
+    margin: var(--co-s3) auto 0;
+    padding: var(--co-s6) var(--co-s4);
+    text-align: left;
+    background: var(--co-surface);
+    border-top: 1px solid var(--co-line);
+    border-bottom: 1px solid var(--co-line);
+}
+
+.confirm-icon {
+    display: grid;
+    place-items: center;
+    width: 64px;
+    height: 64px;
+    margin: 0 auto var(--co-s4);
+    border-radius: 50%;
+    background: #e8f5ec;
+    color: var(--co-success);
+}
+
+.order-confirmation h2 {
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1.3;
+    text-align: center;
+}
+
+.confirm-id {
+    display: table;
+    margin: var(--co-s3) auto var(--co-s5);
+    padding: 6px 14px;
+    font-size: 14px;
+    color: var(--co-muted);
+    background: var(--co-bg);
+    border-radius: 999px;
+}
+
+.confirm-id strong {
+    color: var(--co-text);
+    font-variant-numeric: tabular-nums;
+    word-break: break-all;
+}
+
+.confirm-next {
+    margin: var(--co-s4) 0 0;
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--co-muted);
+}
+
+.confirmation-actions {
+    display: grid;
+    gap: var(--co-s3);
+    margin-top: var(--co-s5);
+}
+
+/* 11. Tablet (>= 640px): panels become rounded cards, fields sit two-up --------------------------- */
+@media (min-width: 640px) {
     .checkout-container {
-        flex-direction: column;
-        padding: 10px;
-        gap: 10px;
-        padding-bottom: 80px; /* Space for sticky bar */
+        max-width: 720px;
+        padding: var(--co-s5) var(--co-s4) calc(var(--co-bar-h) + env(safe-area-inset-bottom));
+        gap: var(--co-s4);
     }
 
-    .checkout-header-mobile {
-        display: flex;
+    .checkout-left,
+    .co-summary-card,
+    .checkout-container .order-confirmation {
+        border: 1px solid var(--co-line);
+        border-radius: var(--co-radius);
     }
 
-    .checkout-right {
-        display: block;
+    .co-section {
+        padding: var(--co-s5);
     }
 
-    .sticky-summary .btn-continue {
-        display: none;
+    .co-summary-card {
+        padding: var(--co-s5);
+    }
+
+    .co-notice {
+        padding-right: var(--co-s5);
+        padding-left: var(--co-s5);
+    }
+
+    .co-fields {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .checkout-container .order-confirmation {
+        padding: 40px var(--co-s5);
+    }
+}
+
+/* 12. Desktop (>= 900px): form left, summary right, CTA in the summary --------------------------- */
+@media (min-width: 900px) {
+    .checkout-container {
+        grid-template-columns: minmax(0, 1fr) 380px;
+        gap: var(--co-s6);
+        align-items: start;
+        max-width: 1080px;
+        padding: var(--co-s6) var(--co-s4) 56px;
+    }
+
+    .sticky-summary {
+        position: sticky;
+        top: 88px;
+    }
+
+    .co-summary-card .co-btn {
+        display: inline-flex;
+        margin-top: var(--co-s2);
     }
 
     .mobile-bottom-bar {
-        display: flex;
+        display: none;
+    }
+
+    .checkout-page .toast {
+        bottom: var(--co-s5);
     }
 }

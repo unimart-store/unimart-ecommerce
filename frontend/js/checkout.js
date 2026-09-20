@@ -37,6 +37,7 @@ let currentQuote = null; // last SERVER quote, or null (no quote / request faile
 let quoteLoading = false;
 let quoteSeq = 0; // ignores out-of-order quote responses
 let deliveryBlocked = false; // delivery off, or the chosen area can't be delivered to
+let paymentBlocked = false; // settings loaded but no payment method is enabled
 
 const areaSelectVisible = () => Boolean(publicSettings && publicSettings.delivery && publicSettings.delivery.enabled !== false && (publicSettings.delivery.areas || []).length > 0);
 
@@ -52,26 +53,30 @@ function renderSummary() {
   // configured yet, quote unavailable, area not chosen) we show the cart's
   // items total and say delivery is still to be confirmed.
   const subtotal = quote ? quote.subtotal : localSubtotal;
-  let deliveryHtml = '<span class="delivery-note">To be confirmed</span>';
+  let deliveryHtml = '<span class="co-value--tbc">To be confirmed</span>';
+  let deliverySub = "";
+  let totalSub = "excl. delivery"; // until delivery is priced, the total is the items only
   let total = subtotal;
-  let totalLabel = "Items Total";
-  let deliveryLabel = "Delivery Charges";
 
   if (quote && quote.delivery.mode !== "manual") {
-    deliveryHtml = quote.delivery.fee === 0 ? '<span class="free">FREE</span>' : formatNPR(quote.delivery.fee);
-    if (quote.delivery.areaName) deliveryLabel = `Delivery (${escapeText(quote.delivery.areaName)})`;
+    deliveryHtml = quote.delivery.fee === 0 ? '<span class="co-value--free">Free</span>' : formatNPR(quote.delivery.fee);
+    if (quote.delivery.areaName) deliverySub = escapeText(quote.delivery.areaName);
     total = quote.total;
-    totalLabel = "Total Amount";
+    totalSub = "";
   } else if (currentQuote && currentQuote.deliverable === false && currentQuote.code !== "AREA_REQUIRED") {
-    deliveryHtml = '<span class="delivery-note">Not available</span>';
+    deliveryHtml = '<span class="co-value--tbc">Not available</span>';
   }
+
+  const count = cartItemsCache.length;
+  const sub = (text) => (text ? `<span class="co-sub">${text}</span>` : "");
 
   if (summaryBox) {
     summaryBox.innerHTML = `
-      <div class="summary-line"><span>Price (${cartItemsCache.length} items)</span><span>${formatNPR(subtotal)}</span></div>
-      <div class="summary-line"><span>${deliveryLabel}</span><span>${deliveryHtml}</span></div>
-      <hr>
-      <div class="summary-line total"><span>${totalLabel}</span><span>${formatNPR(total)}</span></div>
+      <dl class="co-summary">
+        <div class="co-row"><dt>Subtotal${sub(`${count} item${count === 1 ? "" : "s"}`)}</dt><dd>${formatNPR(subtotal)}</dd></div>
+        <div class="co-row"><dt>Delivery${sub(deliverySub)}</dt><dd>${deliveryHtml}</dd></div>
+        <div class="co-row co-row--total"><dt>Total${sub(totalSub)}</dt><dd>${formatNPR(total)}</dd></div>
+      </dl>
     `;
   }
   if (mobileTotal) mobileTotal.textContent = formatNPR(total);
@@ -98,10 +103,12 @@ function setDeliveryMessage(message) {
     if (notice) notice.hidden = true;
     if (message) {
       areaSelect && areaSelect.classList.add("invalid");
+      areaSelect && areaSelect.setAttribute("aria-invalid", "true");
       areaError.textContent = message;
       areaError.classList.add("show");
     } else {
       areaSelect && areaSelect.classList.remove("invalid");
+      areaSelect && areaSelect.removeAttribute("aria-invalid");
       areaError.classList.remove("show");
     }
   } else if (notice) {
@@ -111,7 +118,7 @@ function setDeliveryMessage(message) {
 }
 
 function updateActionState() {
-  const disabled = isSubmitting || quoteLoading || deliveryBlocked;
+  const disabled = isSubmitting || quoteLoading || deliveryBlocked || paymentBlocked;
   ["checkoutBtn", "mobileCheckoutBtn"].forEach((id) => {
     const btn = document.getElementById(id);
     if (btn) btn.disabled = disabled;
@@ -132,6 +139,14 @@ function applyQuoteToUi() {
   }
 
   setDeliveryMessage(message);
+
+  // Next to the picker: what delivery to the chosen area costs (server quote).
+  const hint = document.getElementById("areaHint");
+  if (hint) {
+    const d = currentQuote && currentQuote.deliverable && currentQuote.delivery.mode !== "manual" && selectedAreaId ? currentQuote.delivery : null;
+    hint.textContent = d ? (d.fee === 0 ? `Free delivery to ${d.areaName}` : `Delivery to ${d.areaName}: ${formatNPR(d.fee)}`) : "";
+  }
+
   renderSummary();
   updateActionState();
 }
@@ -185,6 +200,7 @@ function renderAreaSelect() {
   select.addEventListener("change", () => {
     selectedAreaId = select.value;
     select.classList.remove("invalid");
+    select.removeAttribute("aria-invalid");
     document.getElementById("errorArea")?.classList.remove("show");
     refreshQuote();
   });
@@ -193,50 +209,75 @@ function renderAreaSelect() {
 
 // ---- Payment options (only methods the owner currently accepts) ----
 const PAYMENT_UI = {
-  whatsapp: { title: "WhatsApp Order", note: "Confirm & Pay manually on WhatsApp", icon: "fa-brands fa-whatsapp whatsapp-icon" },
-  cod: { title: "Cash on Delivery", note: "Pay when your order arrives", icon: "fa-solid fa-money-bill-wave whatsapp-icon" },
+  whatsapp: { title: "WhatsApp Order", note: "Confirm & pay manually on WhatsApp", icon: "fa-brands fa-whatsapp", tile: "" },
+  cod: { title: "Cash on Delivery", note: "Pay when your order arrives", icon: "fa-solid fa-money-bill-wave", tile: " pay-icon--cod" },
 };
 
 function renderPaymentOptions() {
   const container = document.getElementById("paymentOptions");
   const methods = publicSettings && publicSettings.payment && publicSettings.payment.methods;
-  if (!container || !Array.isArray(methods) || methods.length === 0) return; // keep the built-in markup
+  // Settings unavailable: keep the built-in markup (WhatsApp, the one method
+  // that has always worked) exactly as before.
+  if (!container || !Array.isArray(methods)) return;
 
-  const keepDisabled = container.querySelector && container.querySelector(".payment-card-option.disabled");
   container.innerHTML = "";
+  let rendered = 0;
 
   methods.forEach((method, index) => {
     const ui = PAYMENT_UI[method.code];
     if (!ui) return;
+
     const label = document.createElement("label");
-    label.className = "payment-card-option";
+    label.className = "pay-option";
 
     const input = document.createElement("input");
     input.type = "radio";
     input.name = "payment";
     input.value = method.code;
     input.dataset.method = method.label;
-    if (index === 0) input.checked = true;
+    if (rendered === 0) input.checked = true;
 
-    const info = document.createElement("div");
+    const card = document.createElement("span");
+    card.className = "pay-card";
+
+    const tile = document.createElement("span");
+    tile.className = `pay-icon${ui.tile}`;
+    tile.setAttribute("aria-hidden", "true");
+    const icon = document.createElement("i");
+    icon.className = ui.icon;
+    tile.appendChild(icon);
+
+    const info = document.createElement("span");
     info.className = "pay-info";
     const strong = document.createElement("strong");
     strong.textContent = ui.title;
-    const note = document.createElement("p");
+    const note = document.createElement("span");
     note.textContent = ui.note;
     info.appendChild(strong);
     info.appendChild(note);
 
-    const icon = document.createElement("i");
-    icon.className = ui.icon;
+    const check = document.createElement("span");
+    check.className = "pay-check";
+    check.setAttribute("aria-hidden", "true");
 
+    card.appendChild(tile);
+    card.appendChild(info);
+    card.appendChild(check);
     label.appendChild(input);
-    label.appendChild(info);
-    label.appendChild(icon);
+    label.appendChild(card);
     container.appendChild(label);
+    rendered += 1;
   });
 
-  if (keepDisabled) container.appendChild(keepDisabled);
+  // Nothing the owner has enabled can be shown: say so plainly - never invent a method.
+  paymentBlocked = rendered === 0;
+  if (paymentBlocked) {
+    const message = document.createElement("p");
+    message.className = "co-notice co-notice--inline";
+    message.textContent = "No payment method is available right now. Please contact us to place your order.";
+    container.appendChild(message);
+  }
+  updateActionState();
 }
 
 // What the customer picked. The built-in fallback markup has one option: WhatsApp.
@@ -286,12 +327,14 @@ function looksLikeAddress(address) {
 // ---- Inline field validation ----
 function setFieldError(inputEl, errorEl, message) {
   inputEl.classList.add("invalid");
+  inputEl.setAttribute("aria-invalid", "true");
   errorEl.textContent = message;
   errorEl.classList.add("show");
 }
 
 function clearFieldError(inputEl, errorEl) {
   inputEl.classList.remove("invalid");
+  inputEl.removeAttribute("aria-invalid");
   errorEl.classList.remove("show");
 }
 
@@ -431,27 +474,28 @@ function orderBreakdownHtml(order) {
   // Orders always carry the server's numbers. Without a subtotal (very old
   // orders) only the total is shown - nothing is invented.
   if (order.subtotal === undefined || order.subtotal === null) {
-    return `<p>Total: <strong>${formatNPR(order.totalAmount)}</strong></p>`;
+    return `<dl class="co-summary"><div class="co-row co-row--total"><dt>Total</dt><dd>${formatNPR(order.totalAmount)}</dd></div></dl>`;
   }
-  let delivery = "To be confirmed";
-  if (order.deliveryType !== "manual" && order.deliveryFee !== undefined && order.deliveryFee !== null) {
-    delivery = order.deliveryFee === 0 ? "FREE" : formatNPR(order.deliveryFee);
-  }
-  const area = order.deliveryArea ? ` (${escapeText(order.deliveryArea)})` : "";
-  const totalLabel = order.deliveryType === "manual" ? "Items Total" : "Total";
+  const manual = order.deliveryType === "manual" || order.deliveryFee === undefined || order.deliveryFee === null;
+  let delivery = '<span class="co-value--tbc">To be confirmed</span>';
+  if (!manual) delivery = order.deliveryFee === 0 ? '<span class="co-value--free">Free</span>' : formatNPR(order.deliveryFee);
+  const area = order.deliveryArea ? `<span class="co-sub">${escapeText(order.deliveryArea)}</span>` : "";
+  const totalSub = order.deliveryType === "manual" ? '<span class="co-sub">excl. delivery</span>' : "";
   return `
-    <p>Items: <strong>${formatNPR(order.subtotal)}</strong></p>
-    <p>Delivery${area}: <strong>${delivery}</strong></p>
-    <p>${totalLabel}: <strong>${formatNPR(order.totalAmount)}</strong></p>
+    <dl class="co-summary">
+      <div class="co-row"><dt>Subtotal</dt><dd>${formatNPR(order.subtotal)}</dd></div>
+      <div class="co-row"><dt>Delivery${area}</dt><dd>${delivery}</dd></div>
+      <div class="co-row co-row--total"><dt>Total${totalSub}</dt><dd>${formatNPR(order.totalAmount)}</dd></div>
+    </dl>
   `;
 }
 
 function showOrderConfirmation(order) {
   const container = document.querySelector(".checkout-container");
   const mobileBar = document.querySelector(".mobile-bottom-bar");
-  const mobileHeader = document.querySelector(".checkout-header-mobile");
+  const header = document.querySelector(".checkout-header");
   if (mobileBar) mobileBar.style.display = "none";
-  if (mobileHeader) mobileHeader.style.display = "none";
+  if (header) header.style.display = "none";
   if (!container) return;
 
   const canChat = Boolean(UniMartConfig.getWhatsAppUrl(""));
@@ -461,19 +505,22 @@ function showOrderConfirmation(order) {
 
   container.innerHTML = `
     <div class="order-confirmation">
-      <div class="confirm-icon">✅</div>
-      <h2>Order Placed Successfully</h2>
-      <p>Order ID: <strong>${escapeText(order.orderId)}</strong></p>
+      <div class="confirm-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
+      </div>
+      <h2 id="confirmTitle" tabindex="-1">Order Placed Successfully</h2>
+      <p class="confirm-id">Order ID <strong>${escapeText(order.orderId)}</strong></p>
       ${orderBreakdownHtml(order)}
-      <p>Your order has been placed with UniMart. ${followUp}</p>
-      ${canChat ? "<p>Want a faster reply? You can also send your order details to us on WhatsApp.</p>" : ""}
+      <p class="confirm-next">Your order has been placed with UniMart. ${followUp}</p>
+      ${canChat ? '<p class="confirm-next">Want a faster reply? You can also send your order details to us on WhatsApp.</p>' : ""}
       <div class="confirmation-actions">
-        ${AuthState.isLoggedIn() ? `<a href="${UniMartConfig.getPath(`pages/orders.html?id=${order._id}`)}" class="shop-now-btn">View Order</a>` : ""}
-        ${canChat ? '<button id="sendWhatsappBtn" class="btn-continue">Message Us on WhatsApp</button>' : ""}
-        <a href="${UniMartConfig.getPath("index.html")}" class="shop-now-btn">Continue Shopping</a>
+        ${canChat ? '<button id="sendWhatsappBtn" class="co-btn co-btn--primary" type="button"><i class="fa-brands fa-whatsapp" aria-hidden="true"></i> Message Us on WhatsApp</button>' : ""}
+        ${AuthState.isLoggedIn() ? `<a href="${UniMartConfig.getPath(`pages/orders.html?id=${order._id}`)}" class="co-btn co-btn--secondary">View Order</a>` : ""}
+        <a href="${UniMartConfig.getPath("index.html")}" class="co-btn co-btn--secondary">Continue Shopping</a>
       </div>
     </div>
   `;
+  document.getElementById("confirmTitle")?.focus();
 
   document.getElementById("sendWhatsappBtn")?.addEventListener("click", () => {
     const message = `Hi, I just placed order ${order.orderId} on Unimart. Total: ${formatNPR(order.totalAmount)}`;
@@ -490,7 +537,7 @@ const DELIVERY_ERROR_CODES = ["DELIVERY_DISABLED", "AREA_REQUIRED", "AREA_NOT_FO
 async function submitOrder() {
   // Synchronous re-entry guard: a second tap in the same tick is ignored even
   // before the buttons visibly disable.
-  if (isSubmitting || quoteLoading || deliveryBlocked) return;
+  if (isSubmitting || quoteLoading || deliveryBlocked || paymentBlocked) return;
 
   const checkoutBtn = document.getElementById("checkoutBtn");
   const mobileBtn = document.getElementById("mobileCheckoutBtn");
