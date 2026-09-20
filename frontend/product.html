@@ -106,8 +106,8 @@
         </div>
         <div class="footer-col">
           <h4>Contact</h4>
-          <p><i class="fa fa-phone"></i> <a href="tel:+9779700013011">+977 9700013011</a></p>
-          <p><i class="fa fa-envelope"></i> <a href="mailto:unimart.team@gmail.com">unimart.team@gmail.com</a></p>
+          <p data-site-row><i class="fa fa-phone"></i> <a data-site="phone" href="tel:+9779700013011">+977 9700013011</a></p>
+          <p data-site-row><i class="fa fa-envelope"></i> <a data-site="email" href="mailto:unimart.team@gmail.com">unimart.team@gmail.com</a></p>
         </div>
       </div>
       <div class="footer-bottom">
@@ -122,7 +122,7 @@
         <button type="button" id="qtyPlus" aria-label="Increase quantity">+</button>
       </div>
       <button class="btn-cart" id="btnCart">Add to Cart</button>
-      <a id="whatsappBtn" target="_blank" class="btn-whatsapp"><i class="fa-brands fa-whatsapp"></i> <span class="btn-label-full">Order on </span>WhatsApp</a>
+      <a id="whatsappBtn" target="_blank" rel="noopener" class="btn-whatsapp"><i class="fa-brands fa-whatsapp"></i> <span class="btn-label-full">Order on </span>WhatsApp</a>
     </div>
 
     <script src="js/config.js"></script>
@@ -135,6 +135,7 @@
     <script src="js/services/productService.js"></script>
     <script src="js/services/cartService.js"></script>
     <script src="js/services/checkoutService.js"></script>
+    <script src="js/services/settingsService.js"></script>
     <script src="js/state/authState.js"></script>
     <script src="js/state/cartState.js"></script>
 
@@ -146,6 +147,7 @@
     <script src="js/components/rating.js"></script>
     <script src="js/components/ribbons.js"></script>
 
+    <script src="js/siteInfo.js"></script>
     <script src="js/layout.js"></script>
     <script src="js/product.js"></script>
   </body>

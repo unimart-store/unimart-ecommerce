@@ -56,7 +56,7 @@
         <div class="admin-modal__body">
           <div class="admin-confirm-icon admin-confirm-icon--danger" aria-hidden="true">!</div>
           <h2 id="orderStatusConfirmTitle">Cancel this order?</h2>
-          <p style="color: var(--admin-text-muted); font-size: var(--admin-fs-sm); margin-top: var(--admin-sp-2);">This marks the order as Cancelled. This cannot be undone from here.</p>
+          <p style="color: var(--admin-text-muted); font-size: var(--admin-fs-sm); margin-top: var(--admin-sp-2);">This marks the order as Cancelled and returns its items to stock. This cannot be undone from here.</p>
           <div class="admin-form-actions">
             <button class="admin-btn admin-btn--secondary" id="orderStatusConfirmCancelBtn" type="button">Go back</button>
             <button class="admin-btn admin-btn--danger" id="orderStatusConfirmOkBtn" type="button">
@@ -75,6 +75,7 @@
   <script src="../js/state/authState.js"></script>
   <script src="../js/utils/toast.js"></script>
   <script src="../js/utils/format.js"></script>
+  <script src="../js/utils/orderView.js"></script>
   <script src="../js/utils/debounce.js"></script>
   <script src="../js/layout.js"></script>
   <script src="../js/pages/orders.js"></script>

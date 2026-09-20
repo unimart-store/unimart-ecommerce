@@ -23,6 +23,12 @@ const makeEl = (id) => {
     addEventListener: (t, fn) => (listeners[t] ||= []).push(fn),
     focus() {},
     async click() { for (const fn of listeners.click || []) await fn(); },
+    async fire(type) { for (const fn of listeners[type] || []) await fn(); },
+    children: [],
+    appendChild(child) { this.children.push(child); return child; },
+    dataset: {},
+    removeAttribute(name) { if (name === "href") delete this.href; },
+    closest() { return null; },
   };
   return el;
 };
@@ -70,7 +76,7 @@ const createStorefront = (opts = {}) => {
   };
 
   const sandbox = {
-    console, URLSearchParams, setTimeout, clearTimeout, Promise, JSON, Math, Number, Date, Object, Array, Set, Map, Intl,
+    console, URL, URLSearchParams, setTimeout, clearTimeout, Promise, JSON, Math, Number, Date, Object, Array, Set, Map, Intl,
     localStorage: { getItem: (k) => (storage.has(k) ? storage.get(k) : null), setItem: (k, v) => storage.set(k, String(v)), removeItem: (k) => storage.delete(k) },
     sessionStorage: opts.sessionStorage || (() => { const s = new Map(); return { getItem: (k) => (s.has(k) ? s.get(k) : null), setItem: (k, v) => s.set(k, String(v)), removeItem: (k) => s.delete(k) }; })(),
     document: {
@@ -95,4 +101,4 @@ const createStorefront = (opts = {}) => {
   return { sandbox, els, getEl, nav, toasts, calls, state, server, storage, load, run: (code) => vm.runInContext(code, sandbox) };
 };
 
-module.exports = { createStorefront, read, FRONTEND };
+module.exports = { createStorefront, read, makeEl, FRONTEND };

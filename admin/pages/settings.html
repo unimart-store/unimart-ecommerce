@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Settings — UNiMART Admin</title>
+  <link rel="stylesheet" href="../css/tokens.css" />
+  <link rel="stylesheet" href="../css/layout.css" />
+  <link rel="stylesheet" href="../css/settings.css" />
+</head>
+<body>
+  <div class="admin-shell" id="adminShell">
+    <div id="adminShellRoot"></div>
+  </div>
+
+  <template id="settingsTemplate">
+    <div class="admin-page-header">
+      <div>
+        <h1>Settings</h1>
+        <p>Business details, delivery rules and payment options. Saved changes go live on the website immediately.</p>
+      </div>
+    </div>
+
+    <div id="settingsFormHost"></div>
+
+    <div class="settings-savebar">
+      <span id="settingsStatus" role="status" aria-live="polite"></span>
+      <button class="admin-btn admin-btn--primary" id="settingsSaveBtn" type="button" disabled>Save changes</button>
+    </div>
+  </template>
+
+  <script src="../js/config.js"></script>
+  <script src="../js/services/apiClient.js"></script>
+  <script src="../js/services/authService.js"></script>
+  <script src="../js/services/settingsService.js"></script>
+  <script src="../js/state/authState.js"></script>
+  <script src="../js/utils/toast.js"></script>
+  <script src="../js/utils/format.js"></script>
+  <script src="../js/utils/settingsForm.js"></script>
+  <script src="../js/layout.js"></script>
+  <script src="../js/pages/settings.js"></script>
+</body>
+</html>

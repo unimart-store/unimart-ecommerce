@@ -3,6 +3,8 @@ const Order = require("../models/Order");
 const Product = require("../models/Product");
 const Cart = require("../models/Cart");
 const business = require("../config/business");
+const settingsService = require("../services/settingsService");
+const { buildQuote, round2 } = require("../utils/delivery");
 const {
   validateCheckoutBody,
   buildRequestFingerprint,
@@ -14,7 +16,7 @@ const {
 // storefront is live everywhere, set REQUIRE_IDEMPOTENCY_KEY=true on Render.
 const REQUIRE_IDEMPOTENCY_KEY = process.env.REQUIRE_IDEMPOTENCY_KEY === "true";
 
-const httpError = (status, message) => Object.assign(new Error(message), { status });
+const httpError = (status, message, extra) => Object.assign(new Error(message), { status }, extra);
 
 const isIdempotencyDuplicate = (error) =>
   error &&
@@ -49,9 +51,24 @@ const respondWithExisting = (res, existing, fingerprint) => {
 // total - is read from MongoDB inside the transaction. Any price / total /
 // stock / delivery-fee fields in the request body are never read.
 exports.checkout = async (req, res, next) => {
+  // Business settings are read once per request: the payment methods the
+  // owner currently accepts, and the delivery rules used below.
+  let settings;
+  try {
+    settings = await settingsService.getSettings();
+  } catch (error) {
+    return next(error);
+  }
+  const paymentMethods = settingsService.getEnabledPaymentMethods(settings).map((m) => m.label);
+  const config = {
+    ...business,
+    paymentMethods: paymentMethods.length ? paymentMethods : business.paymentMethods,
+    defaultPaymentMethod: paymentMethods.length ? paymentMethods[0] : business.defaultPaymentMethod,
+  };
+
   const parsed = validateCheckoutBody(req.body, {
     isGuest: !req.user,
-    config: business,
+    config,
     requireIdempotencyKey: REQUIRE_IDEMPOTENCY_KEY,
   });
   if (parsed.errors) {
@@ -112,7 +129,7 @@ exports.checkout = async (req, res, next) => {
       }
 
       const orderItems = [];
-      let total = 0;
+      let subtotal = 0;
 
       for (const { productId, quantity } of lines) {
         const product = await Product.findById(productId).session(session);
@@ -136,7 +153,24 @@ exports.checkout = async (req, res, next) => {
         // Historical snapshot: name and unit price at the moment of purchase.
         // Later price/name edits never change an existing order.
         orderItems.push({ productId: product._id, name: product.name, quantity, price: product.price });
-        total += product.price * quantity;
+        subtotal += product.price * quantity;
+      }
+      subtotal = round2(subtotal);
+
+      // Delivery is decided HERE, from the settings and the server-computed
+      // subtotal. Nothing the browser sent about fees/totals is read. An
+      // undeliverable area throws, which rolls back the stock reserved above.
+      const quote = buildQuote(settings, { subtotal, areaId: input.deliveryAreaId });
+      if (!quote.ok) throw httpError(400, quote.message, { code: quote.code });
+
+      // Consistency guard (not a price source): if the customer agreed to a
+      // different total than the server now calculates, stop and let them
+      // review it instead of charging something they did not see.
+      if (input.quotedTotal !== undefined && Math.abs(quote.total - input.quotedTotal) > 0.005) {
+        throw httpError(409, "The price or delivery charge has changed. Please review your order total and try again.", {
+          code: "QUOTE_CHANGED",
+          quote: { subtotal, delivery: quote.delivery, total: quote.total },
+        });
       }
 
       const order = new Order({
@@ -146,7 +180,13 @@ exports.checkout = async (req, res, next) => {
         customerAddress: input.customerAddress,
         customerCountry: input.country,
         items: orderItems,
-        totalAmount: Math.round(total * 100) / 100,
+        subtotal,
+        deliveryFee: quote.delivery.fee,
+        deliveryType: quote.delivery.mode,
+        deliveryArea: quote.delivery.areaName,
+        deliveryAreaId: quote.delivery.areaId,
+        deliveryCourier: quote.delivery.courier,
+        totalAmount: quote.total, // subtotal + server-calculated delivery fee
         paymentMethod: input.paymentMethod,
         status: "Pending",
         paymentStatus: "Unpaid",
@@ -183,7 +223,10 @@ exports.checkout = async (req, res, next) => {
     // Errors thrown inside the transaction carry a `status` - anything else
     // is a genuine unexpected failure for the global error handler.
     if (error && error.status) {
-      return res.status(error.status).json({ success: false, message: error.message });
+      const payload = { success: false, message: error.message };
+      if (error.code) payload.code = error.code;
+      if (error.quote) payload.quote = error.quote;
+      return res.status(error.status).json(payload);
     }
     return next(error);
   } finally {

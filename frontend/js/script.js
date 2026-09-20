@@ -170,7 +170,9 @@
   // product page ever set it). Give it the same chat link as the footer.
   const navWhatsappBtn = document.getElementById("whatsappBtn");
   if (navWhatsappBtn) {
-    navWhatsappBtn.href = UniMartConfig.getWhatsAppUrl("Hello Unimart Team, I want to know more");
+    const chatUrl = UniMartConfig.getWhatsAppUrl("Hello Unimart Team, I want to know more");
+    if (chatUrl) navWhatsappBtn.href = chatUrl;
+    else navWhatsappBtn.style.display = "none";
   }
 
   load();

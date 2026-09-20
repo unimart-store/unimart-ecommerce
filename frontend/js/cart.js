@@ -96,17 +96,15 @@ async function loadCart() {
     cartContainer.appendChild(div);
   });
 
-  // Delivery is NOT calculated in the browser. The old placeholder rule (free
-  // above 500, otherwise 40) was never applied by the server, so customers saw
-  // a total the order never used. Business-controlled delivery rules arrive
-  // with the Phase 2 settings system.
+  // Delivery is NOT calculated in the browser. The customer picks their area at
+  // checkout and the SERVER prices delivery from the owner's settings.
   const grandTotal = subtotal;
   const savings = originalTotal - subtotal;
 
   if (totalPriceEl) {
     totalPriceEl.innerHTML = `
       <div class="summary-line"><span>Price (${items.length} items)</span><span>${formatNPR(subtotal)}</span></div>
-      <div class="summary-line"><span>Delivery Charges</span><span class="delivery-note">To be confirmed</span></div>
+      <div class="summary-line"><span>Delivery Charges</span><span class="delivery-note">Calculated at checkout</span></div>
       <hr>
       <div class="summary-line total"><span>Items Total</span><span>${formatNPR(grandTotal)}</span></div>
       ${savings > 0 ? `<div class="savings-msg">You will save ${formatNPR(savings)} on this order</div>` : ""}

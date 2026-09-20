@@ -29,6 +29,8 @@ const UniMartConfig = (() => {
     cartSync: "/api/cart/sync",
     checkout: "/api/checkout",
     orders: "/api/orders",
+    settings: "/api/settings",
+    delivery: "/api/delivery",
   };
 
   // Builds a full URL for a registered endpoint, optionally with a path
@@ -76,12 +78,25 @@ const UniMartConfig = (() => {
     return `${CURRENCY.label} ${safe.toLocaleString(CURRENCY.locale, { maximumFractionDigits: 2 })}`;
   };
 
-  // ---- Business contact (Phase 1: fixed; Phase 2: admin-managed settings) ----
+  // ---- Business contact ----
+  // The real value is owned by the business and edited in Admin -> Settings;
+  // SiteSettings (services/settingsService.js) calls setWhatsAppNumber() as
+  // soon as it loads. The number below is ONLY the last-resort fallback for
+  // the moment before settings arrive or if the settings request fails.
   // Do NOT hard-code the WhatsApp number anywhere else in the frontend.
   const BUSINESS = Object.freeze({ whatsappNumber: "9779700013011" });
 
+  let whatsappNumber = BUSINESS.whatsappNumber;
+
+  // Digits only (country code included), as wa.me expects. An empty/invalid
+  // value means the owner cleared it: chat links are then hidden, never broken.
+  const setWhatsAppNumber = (value) => {
+    whatsappNumber = /^\d{8,15}$/.test(String(value || "")) ? String(value) : "";
+  };
+
+  // Returns null when no WhatsApp number is configured - callers must handle it.
   const getWhatsAppUrl = (text) =>
-    `https://wa.me/${BUSINESS.whatsappNumber}${text ? `?text=${encodeURIComponent(text)}` : ""}`;
+    whatsappNumber ? `https://wa.me/${whatsappNumber}${text ? `?text=${encodeURIComponent(text)}` : ""}` : null;
 
   return Object.freeze({
     IS_LOCAL_DEVELOPMENT,
@@ -93,6 +108,7 @@ const UniMartConfig = (() => {
     getPath,
     formatPrice,
     getWhatsAppUrl,
+    setWhatsAppNumber,
   });
 })();
 

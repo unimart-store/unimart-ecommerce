@@ -111,7 +111,7 @@
 
   // ---- Detail modal ----
 
-  const renderItemsTable = (items) => {
+  const renderItemsTable = (items, order) => {
     const total = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     return `
       <table class="admin-order-items">
@@ -126,12 +126,17 @@
             </tr>
           `).join("")}
         </tbody>
-        <tfoot><tr><td colspan="3">Total</td><td>${AdminFormat.currency(total)}</td></tr></tfoot>
+        <tfoot>${AdminOrderView.renderTotalsRows(order, total)}</tfoot>
       </table>
     `;
   };
 
   const openDetailModal = (order) => {
+    // Only offer the current status plus the moves the server will accept.
+    const nextStatuses = ADMIN_ORDER_TRANSITIONS[order.status] || [];
+    const isFinal = nextStatuses.length === 0;
+    const statusOptions = [order.status, ...nextStatuses];
+
     const template = document.getElementById("orderDetailModalTemplate");
     document.body.appendChild(template.content.cloneNode(true));
 
@@ -147,6 +152,8 @@
         </dl>
       </div>
 
+      ${AdminOrderView.renderDeliverySection(order)}
+
       <div class="admin-order-detail-section">
         <h3>Payment</h3>
         <dl class="admin-order-detail-grid">
@@ -159,19 +166,20 @@
 
       <div class="admin-order-detail-section">
         <h3>Items</h3>
-        ${renderItemsTable(order.items || [])}
+        ${renderItemsTable(order.items || [], order)}
       </div>
 
       <div class="admin-order-detail-section">
         <h3>Order Status</h3>
         <div class="admin-order-status-row">
-          <select class="admin-select" id="orderStatusSelect" style="width: auto; min-width: 160px;">
-            ${ADMIN_ORDER_STATUSES.map((s) => `<option value="${s}" ${s === order.status ? "selected" : ""}>${s}</option>`).join("")}
+          <select class="admin-select" id="orderStatusSelect" style="width: auto; min-width: 160px;" ${isFinal ? "disabled" : ""}>
+            ${statusOptions.map((s) => `<option value="${s}" ${s === order.status ? "selected" : ""}>${s}</option>`).join("")}
           </select>
-          <button class="admin-btn admin-btn--primary admin-btn--sm" id="orderStatusUpdateBtn" type="button">
+          <button class="admin-btn admin-btn--primary admin-btn--sm" id="orderStatusUpdateBtn" type="button" ${isFinal ? "disabled" : ""}>
             <span id="orderStatusUpdateText">Update Status</span>
           </button>
         </div>
+        ${isFinal ? `<p class="admin-state__desc" style="margin-top: 8px;">This order is ${AdminFormat.escapeHtml(order.status)} - its status can no longer be changed.</p>` : ""}
       </div>
     `;
 

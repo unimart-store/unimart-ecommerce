@@ -147,9 +147,14 @@
     }
     renderAction();
 
+    // The WhatsApp number is owner-managed (Admin -> Settings). SiteSettings
+    // never rejects: if it can't load, the built-in fallback number is used.
+    if (window.SiteSettings) await SiteSettings.load();
     if (whatsappBtn) {
       const message = `Hi, I'm interested in "${product.name}" (${UniMartConfig.formatPrice(product.price)})`;
-      whatsappBtn.href = UniMartConfig.getWhatsAppUrl(message);
+      const url = UniMartConfig.getWhatsAppUrl(message);
+      if (url) whatsappBtn.href = url;
+      else whatsappBtn.style.display = "none"; // owner cleared the number: no dead link
     }
   };
 

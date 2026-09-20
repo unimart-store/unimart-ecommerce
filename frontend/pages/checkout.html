@@ -33,12 +33,18 @@
               <textarea id="userAddress" placeholder="Full Delivery Address (Tole/Area, Ward No., Municipality, Landmark)" rows="3" required></textarea>
               <p class="field-error" id="errorAddress"></p>
             </div>
+            <!-- Shown only when the owner has configured delivery areas (Admin -> Settings -> Delivery) -->
+            <div id="deliveryAreaBox" hidden>
+              <select id="deliveryArea" aria-label="Delivery area"></select>
+              <p class="field-error" id="errorArea"></p>
+            </div>
+            <p class="delivery-notice" id="deliveryNotice" hidden></p>
           </div>
         </section>
 
         <section class="checkout-card" id="paymentMethodArea">
           <h3><i class="fa-solid fa-credit-card"></i> Payment Method</h3>
-          <div class="payment-options">
+          <div class="payment-options" id="paymentOptions">
             <label class="payment-card-option">
               <input type="radio" name="payment" value="whatsapp" checked />
               <div class="pay-info">
@@ -93,6 +99,8 @@
     <script src="../js/services/productService.js"></script>
     <script src="../js/services/cartService.js"></script>
     <script src="../js/services/checkoutService.js"></script>
+    <script src="../js/services/settingsService.js"></script>
+    <script src="../js/services/deliveryService.js"></script>
     <script src="../js/state/authState.js"></script>
     <script src="../js/state/cartState.js"></script>
     <script src="../js/checkout.js"></script>

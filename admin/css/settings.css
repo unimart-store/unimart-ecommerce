@@ -1,0 +1,18 @@
+/* UNiMART Admin - Settings page. Builds on layout.css form/card classes. */
+.settings-card { margin-bottom: var(--admin-sp-5); }
+.settings-desc { margin: 0 0 var(--admin-sp-4); color: var(--admin-text-muted); font-size: var(--admin-fs-sm); }
+.settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 var(--admin-sp-4); }
+.settings-grid .admin-field--full { grid-column: 1 / -1; }
+.settings-subtitle { margin: var(--admin-sp-5) 0 var(--admin-sp-3); font-size: var(--admin-fs-md); }
+.settings-list { display: flex; flex-direction: column; gap: var(--admin-sp-3); margin-bottom: var(--admin-sp-3); }
+.settings-empty { margin: 0; color: var(--admin-text-faint); font-size: var(--admin-fs-sm); }
+.settings-item { border: 1px solid var(--admin-border); border-radius: var(--admin-radius-md); padding: var(--admin-sp-4); background: var(--admin-bg); }
+.settings-item__head { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--admin-sp-3); gap: var(--admin-sp-3); }
+.settings-hours-row { display: flex; align-items: center; flex-wrap: wrap; gap: var(--admin-sp-4); border-bottom: 1px solid var(--admin-border); padding: var(--admin-sp-2) 0; }
+.settings-hours-row .admin-field { margin-bottom: 0; }
+.settings-hours-day { min-width: 100px; font-weight: 600; }
+.settings-error-summary { background: var(--admin-danger-soft); border: 1px solid var(--admin-danger-soft-border); color: var(--admin-danger); padding: var(--admin-sp-3) var(--admin-sp-4); border-radius: var(--admin-radius-md); margin-bottom: var(--admin-sp-4); font-weight: 600; }
+.admin-input[aria-invalid="true"], .admin-select[aria-invalid="true"], .admin-textarea[aria-invalid="true"] { border-color: var(--admin-danger); }
+.settings-savebar { position: sticky; bottom: 0; display: flex; justify-content: flex-end; align-items: center; gap: var(--admin-sp-4); padding: var(--admin-sp-3) var(--admin-sp-4); background: #fff; border-top: 1px solid var(--admin-border); box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.04); }
+#settingsStatus { color: var(--admin-text-muted); font-size: var(--admin-fs-sm); }
+@media (max-width: 640px) { .settings-grid { grid-template-columns: 1fr; } }

@@ -6,7 +6,7 @@
  *
  * Usage: each protected page includes config.js, apiClient.js, authService.js,
  * authState.js, toast.js, then this file, then calls:
- *   AdminLayout.guardAndRender('dashboard')  // 'dashboard' | 'categories' | 'products' | 'orders'
+ *   AdminLayout.guardAndRender('dashboard')  // 'dashboard' | 'categories' | 'products' | 'orders' | 'settings'
  * which resolves to the current user (redirecting to login if not an admin)
  * and only then renders the shell + reveals the page content.
  */
@@ -16,6 +16,7 @@ const AdminLayout = (() => {
     { key: "categories", label: "Categories", href: "categories.html", icon: "\u2637" },
     { key: "products", label: "Products", href: "products.html", icon: "\u25A3" },
     { key: "orders", label: "Orders", href: "orders.html", icon: "\u2637" },
+    { key: "settings", label: "Settings", href: "settings.html", icon: "\u2699" },
   ];
 
   const initials = (name) => {

@@ -69,6 +69,31 @@ const orderSchema = new mongoose.Schema({
         }
     ],
 
+    // ---- Delivery snapshot (Phase 2). ALL OPTIONAL: orders created before
+    // dynamic delivery existed simply don't have these fields, and their
+    // totalAmount is left exactly as it was - never recalculated.
+    // For new orders: totalAmount = subtotal + deliveryFee, both decided by
+    // the server at order time from the settings in force at that moment.
+    subtotal:{
+        type:Number
+    },
+    deliveryFee:{
+        type:Number
+    },
+    deliveryType:{
+        type:String,
+        enum:["local","paid","manual"]   // manual = no rules configured yet; owner confirms delivery with the customer
+    },
+    deliveryArea:{
+        type:String                      // area NAME at order time (a snapshot: later renames don't change history)
+    },
+    deliveryAreaId:{
+        type:String
+    },
+    deliveryCourier:{
+        type:String                      // courier NAME at order time, if the area used one
+    },
+
     totalAmount:{
         type:Number,
         required:true

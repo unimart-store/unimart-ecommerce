@@ -44,6 +44,28 @@ async function renderOrderList() {
   `).join("");
 }
 
+const escapeText = (value) =>
+  String(value === undefined || value === null ? "" : value).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+// Orders placed before dynamic delivery have no delivery fields: for those we
+// show only the total they were originally charged - nothing is invented.
+function renderDeliveryRows(order) {
+  if (order.subtotal === undefined || order.subtotal === null) return "";
+  let delivery;
+  if (order.deliveryType === "manual" || order.deliveryFee === undefined || order.deliveryFee === null) {
+    delivery = "To be confirmed";
+  } else if (order.deliveryFee === 0) {
+    delivery = "FREE";
+  } else {
+    delivery = formatNPR(order.deliveryFee);
+  }
+  const area = order.deliveryArea ? ` (${escapeText(order.deliveryArea)})` : "";
+  return `
+    <div class="order-item-row"><span>Items</span><span>${formatNPR(order.subtotal)}</span></div>
+    <div class="order-item-row"><span>Delivery${area}</span><span>${delivery}</span></div>
+  `;
+}
+
 async function renderOrderDetail(id) {
   const container = document.getElementById("ordersContainer");
   let order;
@@ -70,6 +92,7 @@ async function renderOrderDetail(id) {
         </div>
       `).join("")}
       <hr>
+      ${renderDeliveryRows(order)}
       <div class="order-item-row order-total-row"><span>Total</span><span>${formatNPR(order.totalAmount)}</span></div>
       <p class="order-meta">Delivery to: ${order.customerAddress}</p>
       ${order.status === "Pending" ? `

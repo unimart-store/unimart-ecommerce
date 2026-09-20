@@ -60,7 +60,7 @@
         <a href="pages/cart.html">Cart</a>
         <a href="#" class="contact-btn">Contact</a>
         <div class="product-action-bar">
-          <a id="whatsappBtn" target="_blank" class="btn-whatsapp"><i class="fa-brands fa-whatsapp"></i> Order on WhatsApp</a>
+          <a id="whatsappBtn" data-site="whatsapp" data-wa-text="Hello Unimart Team, I want to know more" target="_blank" rel="noopener" class="btn-whatsapp"><i class="fa-brands fa-whatsapp"></i> Order on WhatsApp</a>
         </div>
       </nav>
     </aside>
@@ -118,17 +118,20 @@
         </div>
         <div class="footer-col">
           <h4>Contact</h4>
-          <p><i class="fa fa-phone"></i> <a href="tel:+9779700013011">+977 9700013011</a></p>
-          <p><i class="fa fa-envelope"></i> <a href="mailto:unimart.team@gmail.com">unimart.team@gmail.com</a></p>
-          <p><i class="fa fa-location-dot"></i> <a href="https://maps.app.goo.gl/A4eyLsyo5tmei9HPA" target="_blank" class="footer-location">Siddharthanagar (Bhairahawa), Rupandehi, Nepal</a></p>
+          <!-- Contact details below are the built-in fallback; siteInfo.js replaces them with the values saved in Admin -> Settings (and hides anything the owner clears). -->
+          <p data-site-row><i class="fa fa-phone"></i> <a data-site="phone" href="tel:+9779700013011">+977 9700013011</a></p>
+          <p data-site-row><i class="fa fa-envelope"></i> <a data-site="email" href="mailto:unimart.team@gmail.com">unimart.team@gmail.com</a></p>
+          <p data-site-row><i class="fa fa-location-dot"></i> <a data-site="address" href="https://maps.app.goo.gl/A4eyLsyo5tmei9HPA" target="_blank" rel="noopener" class="footer-location">Aawaroad, opposite of Lumbini Bikas Bank, Siddharthanagar, Nepal</a></p>
+          <p data-site-row hidden style="display: none"><i class="fa fa-location-arrow"></i> <a data-site="map" target="_blank" rel="noopener">Get Directions</a></p>
+          <p data-site-row hidden style="display: none"><i class="fa fa-clock"></i> <span data-site="hours"></span></p>
         </div>
         <div class="footer-col">
           <h4>Follow Us</h4>
           <div class="footer-social">
-            <a href="https://www.facebook.com/share/1DSb6HU8iD/" target="_blank" rel="noopener" aria-label="Facebook"><i class="fa-brands fa-facebook-f"></i></a>
-            <a href="https://www.instagram.com/unimart2025?igsh=MWdmcjViZ21uZTh0aA==" target="_blank" rel="noopener" aria-label="Instagram"><i class="fa-brands fa-instagram"></i></a>
-            <a href="https://www.tiktok.com/@unimart_25" target="_blank" rel="noopener" aria-label="Tiktok"><i class="fa-brands fa-tiktok"></i></a>
-            <a href="https://wa.me/9779700013011?text=Hello%20Unimart%20Team,%20I%20want%20to%20know%20more" target="_blank" rel="noopener" aria-label="WhatsApp"><i class="fa-brands fa-whatsapp"></i></a>
+            <a data-site="facebook" href="https://www.facebook.com/share/1DSb6HU8iD/" target="_blank" rel="noopener" aria-label="Facebook"><i class="fa-brands fa-facebook-f"></i></a>
+            <a data-site="instagram" href="https://www.instagram.com/unimart2025?igsh=MWdmcjViZ21uZTh0aA==" target="_blank" rel="noopener" aria-label="Instagram"><i class="fa-brands fa-instagram"></i></a>
+            <a data-site="tiktok" href="https://www.tiktok.com/@unimart_25" target="_blank" rel="noopener" aria-label="Tiktok"><i class="fa-brands fa-tiktok"></i></a>
+            <a data-site="whatsapp" data-wa-text="Hello Unimart Team, I want to know more" href="https://wa.me/9779700013011?text=Hello%20Unimart%20Team,%20I%20want%20to%20know%20more" target="_blank" rel="noopener" aria-label="WhatsApp"><i class="fa-brands fa-whatsapp"></i></a>
           </div>
           <p class="trust-text">✔ Secure Orders <br />✔ Fast Delivery <br />✔ Quality Products</p>
         </div>
@@ -139,7 +142,7 @@
       </div>
     </footer>
 
-    <a href="https://wa.me/9779700013011" class="whatsapp-float" target="_blank" aria-label="Chat on WhatsApp">
+    <a data-site="whatsapp" href="https://wa.me/9779700013011" class="whatsapp-float" target="_blank" rel="noopener" aria-label="Chat on WhatsApp">
       <img src="assets/icons/whatsapp1.svg" alt="WhatsApp" />
     </a>
     <div id="toast" class="toast"></div>
@@ -155,8 +158,10 @@
     <script src="js/services/productService.js"></script>
     <script src="js/services/cartService.js"></script>
     <script src="js/services/checkoutService.js"></script>
+    <script src="js/services/settingsService.js"></script>
     <script src="js/state/authState.js"></script>
     <script src="js/state/cartState.js"></script>
+    <script src="js/siteInfo.js"></script>
     <script src="js/layout.js"></script>
     <script src="js/script.js"></script>
   </body>

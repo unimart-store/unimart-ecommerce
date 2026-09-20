@@ -15,7 +15,7 @@ const clone = (o) => JSON.parse(JSON.stringify(o));
 let seq = 0;
 const nextId = () => (++seq).toString(16).padStart(24, "0");
 
-const db = { products: [], orders: [], carts: [] };
+const db = { products: [], orders: [], carts: [], settings: [], users: [] };
 const control = { hideKeyLookups: 0, failNextOrderSave: false };
 
 const matches = (doc, filter) =>
@@ -31,7 +31,7 @@ const matches = (doc, filter) =>
   });
 
 const applyUpdate = (doc, update) => {
-  if (update.$set) Object.assign(doc, update.$set);
+  if (update.$set) Object.assign(doc, clone(update.$set));
   if (update.$inc) for (const [k, n] of Object.entries(update.$inc)) doc[k] = (doc[k] || 0) + n;
 };
 
@@ -53,6 +53,7 @@ class Query {
   constructor(exec) { this.exec = exec; }
   session() { return this; }
   select() { return this; }
+  lean() { return this; }
   then(res, rej) { return Promise.resolve().then(this.exec).then(res, rej); }
 }
 
@@ -87,6 +88,31 @@ const model = (collection, kind) => ({
 const Product = model("products", "product");
 const Cart = model("carts", "cart");
 const Order = model("orders", "order");
+const User = model("users", "user");
+
+// Settings singleton: findOne(...).lean() and upsert-capable findOneAndUpdate.
+const Settings = {
+  create: async (doc) => {
+    if (db.settings.some((d) => d.key === doc.key)) throw Object.assign(new Error("E11000 duplicate key error ... key"), { code: 11000 });
+    const stored = clone(doc);
+    db.settings.push(stored);
+    return { toObject: () => clone(stored) };
+  },
+  findOne: (filter) => new Query(async () => {
+    const found = db.settings.find((d) => matches(d, filter));
+    return found ? clone(found) : null;
+  }),
+  findOneAndUpdate: async (filter, update, opts = {}) => {
+    let found = db.settings.find((d) => matches(d, filter));
+    if (!found) {
+      if (!opts.upsert) return null;
+      found = clone({ ...(update.$setOnInsert || {}) });
+      db.settings.push(found);
+    }
+    applyUpdate(found, update);
+    return clone(found);
+  },
+};
 
 // `new Order({...}).save({session})`
 const OrderCtor = function (doc) {
@@ -136,15 +162,50 @@ const install = () => {
     if (/models\/Order$/.test(request)) return OrderCtor;
     if (/models\/Product$/.test(request)) return Product;
     if (/models\/Cart$/.test(request)) return Cart;
+    if (/models\/Settings$/.test(request)) return Settings;
+    if (/models\/User$/.test(request)) return User;
+    if (request === "jsonwebtoken") return { verify: (token) => { if (!String(token).startsWith("valid:")) throw new Error("bad token"); return { id: String(token).slice(6) }; } };
+    if (request === "express-rate-limit") return () => (req, res, next) => next && next();
+    if (request === "express") return { Router: () => makeRouter() };
     return orig.call(this, request, ...rest);
   };
   return () => { Module._load = orig; };
 };
 
-const reset = () => { db.products.length = 0; db.orders.length = 0; db.carts.length = 0; control.hideKeyLookups = 0; control.failNextOrderSave = false; };
+// Records route registrations so tests can run the REAL middleware chain.
+const makeRouter = () => {
+  const routes = [];
+  const add = (method) => (path, ...handlers) => routes.push({ method, path, handlers });
+  return { routes, get: add("get"), post: add("post"), put: add("put"), patch: add("patch"), delete: add("delete"), use() {} };
+};
+
+// Runs a registered route's handler chain (middleware + controller) like Express would.
+const runRoute = async (router, method, path, req) => {
+  const route = router.routes.find((r) => r.method === method && r.path === path);
+  if (!route) throw new Error(`no route ${method} ${path}`);
+  const res = makeRes();
+  req.cookies = req.cookies || {}; req.headers = req.headers || {};
+  res.set = function (k, v) { (this.headers ||= {})[k] = v; return this; };
+  let err;
+  for (const handler of route.handlers) {
+    let advanced = false;
+    await handler(req, res, (e) => { advanced = true; if (e) err = e; });
+    if (err) throw err;
+    if (!advanced) break; // handler ended the response
+  }
+  return res;
+};
+
+const addUser = (u) => { const doc = { _id: nextId(), isActive: true, role: "customer", ...u }; db.users.push(doc); return doc; };
+const bearer = (user) => ({ authorization: "Bearer valid:" + user._id });
+
+const reset = () => { db.products.length = 0; db.orders.length = 0; db.carts.length = 0; db.settings.length = 0; db.users.length = 0; control.hideKeyLookups = 0; control.failNextOrderSave = false; };
 const addProduct = (p) => { const doc = { _id: nextId(), name: "Item", price: 100, stockQuantity: 10, status: "active", ...p }; db.products.push(doc); return doc._id; };
 const stockOf = (id) => db.products.find((p) => p._id === id).stockQuantity;
 
-const makeRes = () => ({ statusCode: 200, body: undefined, status(c) { this.statusCode = c; return this; }, json(b) { this.body = JSON.parse(JSON.stringify(b)); return this; } });
+const makeRes = () => ({ statusCode: 200, body: undefined, headers: {}, set(k, v) { this.headers[k] = v; return this; }, status(c) { this.statusCode = c; return this; }, json(b) { this.body = JSON.parse(JSON.stringify(b)); return this; } });
 
-module.exports = { db, control, install, reset, addProduct, stockOf, makeRes, nextId };
+// Seeds a settings document (deep-merged over nothing: pass full sections you care about).
+const setSettings = (doc) => { db.settings.length = 0; db.settings.push({ key: "business", revision: 0, ...clone(doc) }); };
+
+module.exports = { db, control, install, reset, addProduct, stockOf, makeRes, nextId, runRoute, addUser, bearer, setSettings };

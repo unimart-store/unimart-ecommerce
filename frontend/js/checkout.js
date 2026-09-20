@@ -1,8 +1,9 @@
 /**
  * UNiMART — Checkout page (pages/checkout.html).
- * Calls CheckoutService (POST /api/checkout) only. No price or total is
- * ever computed here for submission - they're shown for the customer's
- * benefit, but the server independently resolves the real values.
+ * Calls CheckoutService (POST /api/checkout) only. No price, delivery fee or
+ * total is ever computed here for submission - what the customer sees comes
+ * from the SERVER's quote (POST /api/delivery/quote), and the server
+ * recalculates everything again when the order is placed.
  *
  * Order success is determined ENTIRELY by the backend response. WhatsApp is
  * an optional follow-up action offered after success, never a precondition
@@ -16,40 +17,232 @@
  * idempotency key. Retrying the SAME attempt (double-tap, refresh, timeout,
  * flaky network) re-sends the SAME key, and the server returns the order it
  * already created instead of making a second one.
+ *
+ * Owner-managed settings (delivery areas, payment options) come from
+ * SiteSettings. If they can't be loaded, the page behaves exactly as before:
+ * one payment option, no area picker, delivery "To be confirmed".
  */
 const formatNPR = (amount) => UniMartConfig.formatPrice(amount);
+
+const escapeText = (value) =>
+  String(value === undefined || value === null ? "" : value).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
 let cartItemsCache = [];
 let isSubmitting = false;
 
-async function renderSummary() {
+// ---- Delivery / pricing state (all display-only; the server decides) ----
+let publicSettings = null; // owner-managed public settings, or null if unavailable
+let selectedAreaId = "";
+let currentQuote = null; // last SERVER quote, or null (no quote / request failed)
+let quoteLoading = false;
+let quoteSeq = 0; // ignores out-of-order quote responses
+let deliveryBlocked = false; // delivery off, or the chosen area can't be delivered to
+
+const areaSelectVisible = () => Boolean(publicSettings && publicSettings.delivery && publicSettings.delivery.enabled !== false && (publicSettings.delivery.areas || []).length > 0);
+
+// ---- Price summary ----
+function renderSummary() {
   const summaryBox = document.getElementById("priceSummary");
   const mobileTotal = document.getElementById("mobileTotalAmount");
 
-  cartItemsCache = await CartState.getItems();
+  const localSubtotal = cartItemsCache.reduce((sum, i) => sum + i.price * i.quantity, 0);
+  const quote = currentQuote && currentQuote.deliverable ? currentQuote : null;
 
-  if (cartItemsCache.length === 0) {
-    window.location.href = "cart.html";
-    return;
+  // With a server quote the numbers are the server's. Without one (no rules
+  // configured yet, quote unavailable, area not chosen) we show the cart's
+  // items total and say delivery is still to be confirmed.
+  const subtotal = quote ? quote.subtotal : localSubtotal;
+  let deliveryHtml = '<span class="delivery-note">To be confirmed</span>';
+  let total = subtotal;
+  let totalLabel = "Items Total";
+  let deliveryLabel = "Delivery Charges";
+
+  if (quote && quote.delivery.mode !== "manual") {
+    deliveryHtml = quote.delivery.fee === 0 ? '<span class="free">FREE</span>' : formatNPR(quote.delivery.fee);
+    if (quote.delivery.areaName) deliveryLabel = `Delivery (${escapeText(quote.delivery.areaName)})`;
+    total = quote.total;
+    totalLabel = "Total Amount";
+  } else if (currentQuote && currentQuote.deliverable === false && currentQuote.code !== "AREA_REQUIRED") {
+    deliveryHtml = '<span class="delivery-note">Not available</span>';
   }
-
-  // Delivery is deliberately NOT calculated in the browser. The old placeholder
-  // rule (free above 500, otherwise 40) was never applied by the server, so the
-  // customer saw a total the order didn't use. Real delivery rules that the
-  // business controls arrive with the Phase 2 settings system.
-  const subtotal = cartItemsCache.reduce((sum, i) => sum + i.price * i.quantity, 0);
 
   if (summaryBox) {
     summaryBox.innerHTML = `
       <div class="summary-line"><span>Price (${cartItemsCache.length} items)</span><span>${formatNPR(subtotal)}</span></div>
-      <div class="summary-line"><span>Delivery Charges</span><span class="delivery-note">To be confirmed</span></div>
+      <div class="summary-line"><span>${deliveryLabel}</span><span>${deliveryHtml}</span></div>
       <hr>
-      <div class="summary-line total"><span>Items Total</span><span>${formatNPR(subtotal)}</span></div>
+      <div class="summary-line total"><span>${totalLabel}</span><span>${formatNPR(total)}</span></div>
     `;
   }
-  if (mobileTotal) mobileTotal.textContent = formatNPR(subtotal);
+  if (mobileTotal) mobileTotal.textContent = formatNPR(total);
+}
 
-  return subtotal;
+async function loadCart() {
+  cartItemsCache = await CartState.getItems();
+  if (cartItemsCache.length === 0) {
+    window.location.href = "cart.html";
+    return false;
+  }
+  return true;
+}
+
+// Guests price from the items they submit; logged-in users from their stored cart.
+const itemsForServer = () =>
+  AuthState.isLoggedIn() ? undefined : cartItemsCache.map((i) => ({ productId: i.productId, quantity: i.quantity }));
+
+function setDeliveryMessage(message) {
+  const notice = document.getElementById("deliveryNotice");
+  const areaError = document.getElementById("errorArea");
+  const areaSelect = document.getElementById("deliveryArea");
+  if (areaSelectVisible() && areaError) {
+    if (notice) notice.hidden = true;
+    if (message) {
+      areaSelect && areaSelect.classList.add("invalid");
+      areaError.textContent = message;
+      areaError.classList.add("show");
+    } else {
+      areaSelect && areaSelect.classList.remove("invalid");
+      areaError.classList.remove("show");
+    }
+  } else if (notice) {
+    notice.textContent = message || "";
+    notice.hidden = !message;
+  }
+}
+
+function updateActionState() {
+  const disabled = isSubmitting || quoteLoading || deliveryBlocked;
+  ["checkoutBtn", "mobileCheckoutBtn"].forEach((id) => {
+    const btn = document.getElementById(id);
+    if (btn) btn.disabled = disabled;
+  });
+}
+
+// Turns the latest server quote (and the delivery on/off switch) into UI state.
+function applyQuoteToUi() {
+  deliveryBlocked = false;
+  let message = "";
+
+  if (publicSettings && publicSettings.delivery && publicSettings.delivery.enabled === false) {
+    deliveryBlocked = true;
+    message = "Delivery is currently unavailable. Please contact us to arrange your order.";
+  } else if (currentQuote && currentQuote.deliverable === false && currentQuote.code !== "AREA_REQUIRED") {
+    deliveryBlocked = true;
+    message = currentQuote.message || "Delivery is not available for this area.";
+  }
+
+  setDeliveryMessage(message);
+  renderSummary();
+  updateActionState();
+}
+
+// Asks the server for the price + delivery for the chosen area. Display only:
+// if it fails, checkout still works and the server prices the order itself.
+async function refreshQuote() {
+  if (!window.DeliveryService) {
+    currentQuote = null;
+    applyQuoteToUi();
+    return;
+  }
+  const seq = ++quoteSeq;
+  quoteLoading = true;
+  updateActionState();
+  try {
+    const data = await DeliveryService.quote({ areaId: selectedAreaId || undefined, items: itemsForServer() });
+    if (seq !== quoteSeq) return;
+    currentQuote = data;
+  } catch (error) {
+    if (seq !== quoteSeq) return;
+    currentQuote = null;
+  }
+  quoteLoading = false;
+  applyQuoteToUi();
+}
+
+// ---- Delivery area picker (only when the owner has configured areas) ----
+function renderAreaSelect() {
+  const box = document.getElementById("deliveryAreaBox");
+  const select = document.getElementById("deliveryArea");
+  if (!box || !select) return;
+
+  if (!areaSelectVisible()) {
+    box.hidden = true;
+    return;
+  }
+
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = "Select your delivery area";
+  select.appendChild(placeholder);
+
+  publicSettings.delivery.areas.forEach((area) => {
+    const option = document.createElement("option");
+    option.value = area.id;
+    option.textContent = area.available ? area.name : `${area.name} (unavailable)`;
+    select.appendChild(option);
+  });
+
+  select.addEventListener("change", () => {
+    selectedAreaId = select.value;
+    select.classList.remove("invalid");
+    document.getElementById("errorArea")?.classList.remove("show");
+    refreshQuote();
+  });
+  box.hidden = false;
+}
+
+// ---- Payment options (only methods the owner currently accepts) ----
+const PAYMENT_UI = {
+  whatsapp: { title: "WhatsApp Order", note: "Confirm & Pay manually on WhatsApp", icon: "fa-brands fa-whatsapp whatsapp-icon" },
+  cod: { title: "Cash on Delivery", note: "Pay when your order arrives", icon: "fa-solid fa-money-bill-wave whatsapp-icon" },
+};
+
+function renderPaymentOptions() {
+  const container = document.getElementById("paymentOptions");
+  const methods = publicSettings && publicSettings.payment && publicSettings.payment.methods;
+  if (!container || !Array.isArray(methods) || methods.length === 0) return; // keep the built-in markup
+
+  const keepDisabled = container.querySelector && container.querySelector(".payment-card-option.disabled");
+  container.innerHTML = "";
+
+  methods.forEach((method, index) => {
+    const ui = PAYMENT_UI[method.code];
+    if (!ui) return;
+    const label = document.createElement("label");
+    label.className = "payment-card-option";
+
+    const input = document.createElement("input");
+    input.type = "radio";
+    input.name = "payment";
+    input.value = method.code;
+    input.dataset.method = method.label;
+    if (index === 0) input.checked = true;
+
+    const info = document.createElement("div");
+    info.className = "pay-info";
+    const strong = document.createElement("strong");
+    strong.textContent = ui.title;
+    const note = document.createElement("p");
+    note.textContent = ui.note;
+    info.appendChild(strong);
+    info.appendChild(note);
+
+    const icon = document.createElement("i");
+    icon.className = ui.icon;
+
+    label.appendChild(input);
+    label.appendChild(info);
+    label.appendChild(icon);
+    container.appendChild(label);
+  });
+
+  if (keepDisabled) container.appendChild(keepDisabled);
+}
+
+// What the customer picked. The built-in fallback markup has one option: WhatsApp.
+function getSelectedPaymentMethod() {
+  const checked = document.querySelector('input[name="payment"]:checked');
+  return (checked && checked.dataset && checked.dataset.method) || "WhatsApp";
 }
 
 // Pre-fills what the account already reliably has (name, phone) for a
@@ -107,8 +300,8 @@ function wireLiveValidationClear(inputEl, errorEl) {
   inputEl.addEventListener("input", () => clearFieldError(inputEl, errorEl));
 }
 
-// Returns {valid, values} - validates all three fields, applies inline
-// errors, and focuses the first invalid field, per the required UX.
+// Returns {valid, values} - validates all fields, applies inline errors, and
+// focuses the first invalid field, per the required UX.
 function validateForm() {
   const nameEl = document.getElementById("userName");
   const phoneEl = document.getElementById("userPhone");
@@ -146,12 +339,21 @@ function validateForm() {
     firstInvalid = firstInvalid || addressEl;
   }
 
+  if (areaSelectVisible() && !selectedAreaId) {
+    const areaEl = document.getElementById("deliveryArea");
+    const areaError = document.getElementById("errorArea");
+    if (areaEl && areaError) {
+      setFieldError(areaEl, areaError, "Please select your delivery area");
+      firstInvalid = firstInvalid || areaEl;
+    }
+  }
+
   if (firstInvalid) {
     firstInvalid.focus();
     return { valid: false };
   }
 
-  return { valid: true, values: { name, phone, address } };
+  return { valid: true, values: { name, phone, address, areaId: selectedAreaId, payment: getSelectedPaymentMethod() } };
 }
 
 // The backend replies {errors: {customerName, customerPhone, customerAddress, ...}}
@@ -162,6 +364,7 @@ function applyServerFieldErrors(errors) {
     customerName: ["userName", "errorName"],
     customerPhone: ["userPhone", "errorPhone"],
     customerAddress: ["userAddress", "errorAddress"],
+    deliveryAreaId: ["deliveryArea", "errorArea"],
   };
   let first = null;
   Object.entries(map).forEach(([field, [inputId, errorId]]) => {
@@ -186,14 +389,15 @@ function generateCheckoutKey() {
   return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-// What the customer is trying to buy: the exact contact details + cart lines.
-// Change any of it and it is a different order, so it gets a new key.
+// What the customer is trying to buy: the exact contact details, delivery area,
+// payment method and cart lines. Change any of it and it is a different order,
+// so it gets a new key.
 function checkoutFingerprint(values, items) {
   const lines = items
     .map((i) => `${i.productId}:${i.quantity}`)
     .sort()
     .join(",");
-  return JSON.stringify([values.name, values.phone, values.address, lines]);
+  return JSON.stringify([values.name, values.phone, values.address, lines, values.areaId || "", values.payment || ""]);
 }
 
 // Reuses the stored key while the attempt is unchanged (this is what makes a
@@ -223,6 +427,25 @@ function clearCheckoutKey() {
 }
 
 // ---- Success state - WhatsApp is optional, shown only after real backend success ----
+function orderBreakdownHtml(order) {
+  // Orders always carry the server's numbers. Without a subtotal (very old
+  // orders) only the total is shown - nothing is invented.
+  if (order.subtotal === undefined || order.subtotal === null) {
+    return `<p>Total: <strong>${formatNPR(order.totalAmount)}</strong></p>`;
+  }
+  let delivery = "To be confirmed";
+  if (order.deliveryType !== "manual" && order.deliveryFee !== undefined && order.deliveryFee !== null) {
+    delivery = order.deliveryFee === 0 ? "FREE" : formatNPR(order.deliveryFee);
+  }
+  const area = order.deliveryArea ? ` (${escapeText(order.deliveryArea)})` : "";
+  const totalLabel = order.deliveryType === "manual" ? "Items Total" : "Total";
+  return `
+    <p>Items: <strong>${formatNPR(order.subtotal)}</strong></p>
+    <p>Delivery${area}: <strong>${delivery}</strong></p>
+    <p>${totalLabel}: <strong>${formatNPR(order.totalAmount)}</strong></p>
+  `;
+}
+
 function showOrderConfirmation(order) {
   const container = document.querySelector(".checkout-container");
   const mobileBar = document.querySelector(".mobile-bottom-bar");
@@ -231,35 +454,43 @@ function showOrderConfirmation(order) {
   if (mobileHeader) mobileHeader.style.display = "none";
   if (!container) return;
 
+  const canChat = Boolean(UniMartConfig.getWhatsAppUrl(""));
+  const followUp = order.deliveryType === "manual"
+    ? "We'll contact you shortly to confirm delivery and payment."
+    : "We'll contact you shortly to confirm your order and payment.";
+
   container.innerHTML = `
     <div class="order-confirmation">
       <div class="confirm-icon">✅</div>
       <h2>Order Placed Successfully</h2>
-      <p>Order ID: <strong>${order.orderId}</strong></p>
-      <p>Items Total: <strong>${formatNPR(order.totalAmount)}</strong></p>
-      <p>Your order has been placed with UniMart. We'll contact you shortly to confirm delivery and payment.</p>
-      <p>Want a faster reply? You can also send your order details to us on WhatsApp.</p>
+      <p>Order ID: <strong>${escapeText(order.orderId)}</strong></p>
+      ${orderBreakdownHtml(order)}
+      <p>Your order has been placed with UniMart. ${followUp}</p>
+      ${canChat ? "<p>Want a faster reply? You can also send your order details to us on WhatsApp.</p>" : ""}
       <div class="confirmation-actions">
         ${AuthState.isLoggedIn() ? `<a href="${UniMartConfig.getPath(`pages/orders.html?id=${order._id}`)}" class="shop-now-btn">View Order</a>` : ""}
-        <button id="sendWhatsappBtn" class="btn-continue">Message Us on WhatsApp</button>
+        ${canChat ? '<button id="sendWhatsappBtn" class="btn-continue">Message Us on WhatsApp</button>' : ""}
         <a href="${UniMartConfig.getPath("index.html")}" class="shop-now-btn">Continue Shopping</a>
       </div>
     </div>
   `;
 
   document.getElementById("sendWhatsappBtn")?.addEventListener("click", () => {
-    const message = `Hi, I just placed order ${order.orderId} on Unimart. Items total: ${formatNPR(order.totalAmount)}`;
-    window.open(UniMartConfig.getWhatsAppUrl(message), "_blank");
+    const message = `Hi, I just placed order ${order.orderId} on Unimart. Total: ${formatNPR(order.totalAmount)}`;
+    const url = UniMartConfig.getWhatsAppUrl(message);
+    if (url) window.open(url, "_blank");
     // Nothing about order status depends on what happens in this window -
     // the order was already confirmed by the backend before this button
     // even existed.
   });
 }
 
+const DELIVERY_ERROR_CODES = ["DELIVERY_DISABLED", "AREA_REQUIRED", "AREA_NOT_FOUND", "AREA_UNSUPPORTED", "LOCAL_DISABLED", "BELOW_MINIMUM", "FEE_UNAVAILABLE"];
+
 async function submitOrder() {
   // Synchronous re-entry guard: a second tap in the same tick is ignored even
   // before the buttons visibly disable.
-  if (isSubmitting) return;
+  if (isSubmitting || quoteLoading || deliveryBlocked) return;
 
   const checkoutBtn = document.getElementById("checkoutBtn");
   const mobileBtn = document.getElementById("mobileCheckoutBtn");
@@ -285,14 +516,17 @@ async function submitOrder() {
   if (overlay) overlay.style.display = "flex";
 
   try {
-    const contact = { customerName: name, customerPhone: phone, customerAddress: address, paymentMethod: "WhatsApp" };
+    const contact = { customerName: name, customerPhone: phone, customerAddress: address, paymentMethod: values.payment };
+    // Optional extras are only sent when they exist. The quoted total is what
+    // the customer SAW; the server never uses it as a price - it only refuses
+    // the order if the real total no longer matches.
+    if (values.areaId && areaSelectVisible()) contact.deliveryAreaId = values.areaId;
+    if (currentQuote && currentQuote.deliverable) contact.quotedTotal = currentQuote.total;
 
     // Guest checkout must submit items directly - the server has no cart
     // record for a guest. Logged-in checkout omits items entirely; the
     // server reads the authenticated user's stored Cart instead.
-    const items = AuthState.isLoggedIn()
-      ? undefined
-      : cartItemsCache.map((i) => ({ productId: i.productId, quantity: i.quantity }));
+    const items = itemsForServer();
 
     const checkoutKey = getOrCreateCheckoutKey(checkoutFingerprint(values, cartItemsCache));
     const order = await CheckoutService.placeOrder(contact, items, checkoutKey);
@@ -315,6 +549,8 @@ async function submitOrder() {
   } catch (error) {
     if (overlay) overlay.style.display = "none";
 
+    const code = error && error.body && error.body.code;
+
     // "Same key, different details": that attempt is finished; start fresh.
     if (error && error.status === 409 && /different details/i.test(error.message || "")) {
       clearCheckoutKey();
@@ -323,7 +559,16 @@ async function submitOrder() {
     const shownInline = applyServerFieldErrors(error && error.body && error.body.errors);
     const outcomeUnknown = Boolean(error && (error.networkError || error.status >= 500));
 
-    if (outcomeUnknown) {
+    if (code === "QUOTE_CHANGED") {
+      // Price or delivery changed since the customer last saw the total: show
+      // the new numbers and let them confirm again. Nothing was ordered.
+      if (error.body.quote) currentQuote = { deliverable: true, currency: "NPR", ...error.body.quote };
+      renderSummary();
+      window.showToast?.(error.message);
+    } else if (DELIVERY_ERROR_CODES.includes(code)) {
+      setDeliveryMessage(error.message);
+      refreshQuote();
+    } else if (outcomeUnknown) {
       // We can't tell whether the server created the order. The same key is
       // kept, so pressing the button again is safe - it can't create a duplicate.
       window.showToast?.("We couldn't confirm your order. Please tap Place Order again - it won't create a duplicate.");
@@ -333,11 +578,9 @@ async function submitOrder() {
 
     isSubmitting = false;
     [checkoutBtn, mobileBtn].forEach((btn) => {
-      if (btn) {
-        btn.disabled = false;
-        btn.textContent = btn.dataset.originalText;
-      }
+      if (btn) btn.textContent = btn.dataset.originalText;
     });
+    updateActionState();
   }
 }
 
@@ -360,7 +603,15 @@ document.addEventListener("DOMContentLoaded", async () => {
       await AuthState.init();
     }
     prefillFromAccount();
-    await renderSummary();
+    if (!(await loadCart())) return;
+    renderSummary();
+
+    // Owner-managed settings: payment options, delivery areas. Never rejects;
+    // null means "use the built-in behaviour".
+    if (window.SiteSettings) publicSettings = await SiteSettings.load();
+    renderPaymentOptions();
+    renderAreaSelect();
+    await refreshQuote();
   } catch (error) {
     window.showToast?.(error.message || "Could not load your cart. Please refresh and try again.");
   }

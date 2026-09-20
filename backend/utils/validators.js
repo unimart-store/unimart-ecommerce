@@ -166,6 +166,29 @@ const validateIdempotencyKey = (raw, { required = false } = {}) => {
   return { value: raw };
 };
 
+// ---- Delivery area / quoted total (Phase 2) -------------------------------------
+
+// The area is chosen from the list the server published (settings). Only the
+// ID's FORMAT is checked here; whether it exists, is deliverable and what it
+// costs is decided from settings inside the order transaction.
+const AREA_ID_PATTERN = /^[a-z0-9]{8,32}$/;
+
+const validateDeliveryAreaId = (raw) => {
+  if (raw === undefined || raw === null || raw === "") return { value: undefined };
+  if (typeof raw !== "string" || !AREA_ID_PATTERN.test(raw)) return { error: "Please choose a valid delivery area" };
+  return { value: raw };
+};
+
+// The total the customer was SHOWN. It is never used as the order total - it
+// only lets the server refuse (409) when the real total has since changed, so
+// nobody is charged something different from what they agreed to.
+const validateQuotedTotal = (raw) => {
+  if (raw === undefined || raw === null || raw === "") return { value: undefined };
+  const n = typeof raw === "number" ? raw : typeof raw === "string" && raw.trim() !== "" ? Number(raw) : NaN;
+  if (!Number.isFinite(n) || n < 0 || n > 100000000) return { error: "Invalid order total" };
+  return { value: Math.round((n + Number.EPSILON) * 100) / 100 };
+};
+
 // ---- Guest items -------------------------------------------------------------
 
 // Guests have no server-side cart, so they submit {productId, quantity}
@@ -230,6 +253,15 @@ const validateCheckoutBody = (body, { isGuest, config = defaultConfig, requireId
   const key = validateIdempotencyKey(body.idempotencyKey, { required: requireIdempotencyKey });
   if (key.error) errors.idempotencyKey = key.error; else value.idempotencyKey = key.value;
 
+  // Optional extras: only added to the result when the client sent them.
+  const area = validateDeliveryAreaId(body.deliveryAreaId);
+  if (area.error) errors.deliveryAreaId = area.error;
+  else if (area.value !== undefined) value.deliveryAreaId = area.value;
+
+  const quoted = validateQuotedTotal(body.quotedTotal);
+  if (quoted.error) errors.quotedTotal = quoted.error;
+  else if (quoted.value !== undefined) value.quotedTotal = quoted.value;
+
   if (isGuest) {
     const items = validateGuestItems(body.items);
     if (items.error) errors.items = items.error; else value.items = items.items;
@@ -253,6 +285,7 @@ const buildRequestFingerprint = (value) =>
         a: value.customerAddress,
         c: value.country,
         m: value.paymentMethod,
+        d: value.deliveryAreaId || null,
         i: value.items || null,
       })
     )
@@ -270,6 +303,8 @@ module.exports = {
   validatePaymentMethod,
   validateIdempotencyKey,
   validateGuestItems,
+  validateDeliveryAreaId,
+  validateQuotedTotal,
   validateCheckoutBody,
   buildRequestFingerprint,
   firstErrorMessage,
