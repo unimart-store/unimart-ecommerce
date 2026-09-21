@@ -7,9 +7,13 @@ if (process.env.NODE_ENV !== "production") {
   const dns = require("dns");
   dns.setServers(["8.8.8.8"]);
 }
+// const dns = require("dns");
 
+// TEMPORARY TEST
+// dns.setServers(["8.8.8.8"]);
+// console.log("DNS Servers:", dns.getServers());
 
-
+// require("dotenv").config();
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
@@ -101,6 +105,7 @@ app.use("/api/cart", require("./routes/cartRoutes"));
 app.use("/api/checkout", require("./routes/checkoutRoutes"));
 app.use("/api/settings", require("./routes/settingsRoutes"));
 app.use("/api/delivery", require("./routes/deliveryRoutes"));
+app.use("/api/notifications", require("./routes/notificationRoutes"));
 app.get("/api/health", (req, res) => res.status(200).json({ status: "ok" }));
 
 // 4. GLOBAL ERROR HANDLER (Don't let errors leak internal details!)

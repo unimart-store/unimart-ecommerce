@@ -31,6 +31,7 @@ const UniMartConfig = (() => {
     orders: "/api/orders",
     settings: "/api/settings",
     delivery: "/api/delivery",
+    notifications: "/api/notifications",
   };
 
   // Builds a full URL for a registered endpoint, optionally with a path

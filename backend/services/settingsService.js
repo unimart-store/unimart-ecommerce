@@ -5,6 +5,7 @@
 const Settings = require("../models/Settings");
 const { DAYS, PAYMENT_METHODS, buildDefaultSettings } = require("../utils/settingsDefaults");
 const { describeArea } = require("../utils/delivery");
+const { mergeNotifications } = require("../utils/notificationSettings");
 
 const KEY = "business";
 
@@ -31,6 +32,7 @@ const withDefaults = (stored) => {
     delivery,
     payment: section("payment"),
     couriers: Array.isArray(s.couriers) ? s.couriers : [],
+    notifications: mergeNotifications(s.notifications),
     revision: Number.isInteger(s.revision) ? s.revision : 0,
     updatedAt: s.updatedAt,
   };
@@ -81,6 +83,7 @@ const toAdminSettings = (s) => ({
   delivery: s.delivery,
   payment: s.payment,
   couriers: s.couriers,
+  notifications: s.notifications, // owner-only (holds their personal WhatsApp number); NEVER part of toPublicSettings
   revision: s.revision,
   updatedAt: s.updatedAt,
 });

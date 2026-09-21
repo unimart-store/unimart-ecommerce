@@ -82,6 +82,33 @@ const settingsSchema = new mongoose.Schema(
       codEnabled: { type: Boolean, default: false },
     },
     couriers: { type: [courierSchema], default: [] },
+
+    // Notification BEHAVIOUR (what is sent, on which channel). No secrets here:
+    // Meta credentials are environment variables on the backend only.
+    notifications: {
+      channels: {
+        inApp: { type: Boolean, default: true },
+        whatsapp: { type: Boolean, default: false },
+      },
+      whatsapp: {
+        costAcknowledged: { type: Boolean, default: false },
+        adminNumber: { type: String, default: "" },
+        adminTemplate: { name: { type: String, default: "" }, language: { type: String, default: "en" } },
+        customerTemplate: { name: { type: String, default: "" }, language: { type: String, default: "en" } },
+      },
+      admin: {
+        newOrder: { type: Boolean, default: true },
+        statusChange: { type: Boolean, default: true },
+        cancellation: { type: Boolean, default: true },
+        lowStock: { type: Boolean, default: false },
+        lowStockThreshold: { type: Number, default: null },
+      },
+      customer: {
+        orderCreated: { type: Boolean, default: true },
+        statusChange: { type: Boolean, default: true },
+        cancellation: { type: Boolean, default: true },
+      },
+    },
   },
   { timestamps: true }
 );

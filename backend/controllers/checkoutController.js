@@ -4,6 +4,7 @@ const Product = require("../models/Product");
 const Cart = require("../models/Cart");
 const business = require("../config/business");
 const settingsService = require("../services/settingsService");
+const notificationService = require("../services/notifications/notificationService");
 const { buildQuote, round2 } = require("../utils/delivery");
 const {
   validateCheckoutBody,
@@ -96,6 +97,7 @@ exports.checkout = async (req, res, next) => {
     session = await mongoose.startSession();
     let createdOrder = null;
     let replayedOrder = null;
+    let stockAfter = []; // stock levels after this order, for low-stock alerts
 
     // withTransaction may re-run this callback (transient errors / write
     // conflicts), so it must start from a clean slate every time and must
@@ -103,6 +105,7 @@ exports.checkout = async (req, res, next) => {
     await session.withTransaction(async () => {
       createdOrder = null;
       replayedOrder = null;
+      stockAfter = [];
 
       // A concurrent request with the same key may have committed while we
       // waited; re-check inside the transaction before reserving any stock.
@@ -149,6 +152,7 @@ exports.checkout = async (req, res, next) => {
           { new: true, session }
         );
         if (!updated) throw httpError(409, `Insufficient stock for "${product.name}"`);
+        stockAfter.push({ productId: String(product._id), name: product.name, stock: updated.stockQuantity });
 
         // Historical snapshot: name and unit price at the moment of purchase.
         // Later price/name edits never change an existing order.
@@ -207,6 +211,12 @@ exports.checkout = async (req, res, next) => {
     });
 
     if (replayedOrder) return respondWithExisting(res, replayedOrder, fingerprint);
+
+    // The order is committed. Notifications are scheduled on a later tick and
+    // can never fail, delay or roll back what just succeeded.
+    notificationService.emitOrderCreated(createdOrder);
+    stockAfter.forEach((s) => notificationService.emitLowStock({ ...s, orderId: createdOrder._id }));
+
     return res.status(201).json({ success: true, data: createdOrder });
   } catch (error) {
     // Lost a race on the unique (scope, key) index: another request for the

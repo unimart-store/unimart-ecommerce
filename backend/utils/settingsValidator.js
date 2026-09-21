@@ -13,6 +13,7 @@
  */
 const crypto = require("crypto");
 const { DAYS, AREA_TYPES } = require("./settingsDefaults");
+const { validateNotifications } = require("./notificationSettings");
 
 const LIMITS = Object.freeze({
   MAX_AREAS: 50,
@@ -292,7 +293,7 @@ const validateSettingsUpdate = (body, existing = {}) => {
   const sections = {};
 
   const has = (k) => body[k] !== undefined;
-  if (!["business", "social", "hours", "delivery", "payment", "couriers"].some(has)) {
+  if (!["business", "social", "hours", "delivery", "payment", "couriers", "notifications"].some(has)) {
     return { errors: { _: "Nothing to update" } };
   }
 
@@ -304,6 +305,7 @@ const validateSettingsUpdate = (body, existing = {}) => {
   if (has("hours")) sections.hours = validateHours(body.hours, r, errors);
   if (has("delivery")) sections.delivery = validateDelivery(body.delivery, r, errors, couriers);
   if (has("payment")) sections.payment = validatePayment(body.payment, r, errors);
+  if (has("notifications")) sections.notifications = validateNotifications(body.notifications, r, errors, { normalizeWhatsAppNumber });
 
   // Changing couriers alone must not silently break areas that already use them.
   if (has("couriers") && !has("delivery") && existing.delivery && Array.isArray(existing.delivery.areas)) {

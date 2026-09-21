@@ -150,7 +150,7 @@ test("PUT: mass-assignment attempts (key, revision, updatedBy, secrets, unknown 
   const stored = fake.db.settings[0];
   assert.equal(stored.key, "business"); assert.equal(stored.updatedBy, admin._id);
   assert.ok(!JSON.stringify(stored).includes("leak"));
-  assert.deepEqual(Object.keys(stored).sort(), ["business", "couriers", "delivery", "hours", "key", "payment", "revision", "social", "updatedBy"].filter((k) => k in stored).sort());
+  assert.deepEqual(Object.keys(stored).sort(), ["business", "couriers", "delivery", "hours", "key", "notifications", "payment", "revision", "social", "updatedBy"].filter((k) => k in stored).sort());
 });
 
 test("legacy/partial settings documents are completed with defaults (nothing undefined)", async () => {

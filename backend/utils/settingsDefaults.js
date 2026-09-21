@@ -11,6 +11,8 @@
  * Everything the owner has not confirmed is empty / null / disabled:
  * business hours, delivery fees and areas, free-delivery minimum, couriers.
  */
+const { buildDefaultNotifications } = require("./notificationSettings");
+
 const DAYS = Object.freeze(["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]);
 
 // Payment methods the platform actually IMPLEMENTS. Settings can switch these
@@ -60,6 +62,7 @@ const buildDefaultSettings = () => ({
     codEnabled: false,
   },
   couriers: [],
+  notifications: buildDefaultNotifications(),
 });
 
 module.exports = { DAYS, PAYMENT_METHODS, AREA_TYPES, buildDefaultSettings };

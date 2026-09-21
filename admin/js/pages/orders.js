@@ -264,5 +264,14 @@
     document.getElementById("orderSearchInput")?.addEventListener("input", debounce(renderList, 300));
 
     await loadOrders();
+
+    // Deep link from a notification: orders.html?order=<order number>
+    const wanted = new URLSearchParams(window.location.search).get("order");
+    if (wanted) {
+      const match = allOrders.find((o) => o.orderId === wanted);
+      if (match) openDetailModal(match);
+      else window.showAdminToast?.("That order could not be found.", "error");
+      window.history.replaceState({}, "", window.location.pathname);
+    }
   })();
 })();

@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 const Order = require("../models/Order");
 const Product = require("../models/Product");
+const notificationService = require("../services/notifications/notificationService");
 const {
   ORDER_STATUSES,
   CUSTOMER_CANCELLABLE_FROM,
@@ -103,6 +104,8 @@ exports.cancelMyOrder = async (req, res, next) => {
     if (!result.order) {
       return res.status(result.status).json({ success: false, message: result.message });
     }
+    // Customers may only cancel Pending orders (CUSTOMER_CANCELLABLE_FROM).
+    notificationService.emitOrderStatusChanged({ order: result.order, from: "Pending", to: "Cancelled", actor: { type: "customer", id: req.user._id } });
     res.status(200).json(result.order);
   } catch (error) {
     next(error);
@@ -140,6 +143,8 @@ exports.updateOrderStatus = async (req, res, next) => {
 
     // Cancelling always goes through the restock path.
     if (status === "Cancelled") {
+      // Read only for the notification's "from" status; the cancel itself stays atomic.
+      const before = await Order.findById(req.params.id).select("status");
       const result = await cancelOrderAndRestock({
         filter: { _id: req.params.id },
         allowedFrom: ADMIN_CANCELLABLE_FROM,
@@ -147,6 +152,7 @@ exports.updateOrderStatus = async (req, res, next) => {
       if (!result.order) {
         return res.status(result.status).json({ success: false, message: result.message });
       }
+      notificationService.emitOrderStatusChanged({ order: result.order, from: before && before.status, to: "Cancelled", actor: { type: "admin", id: req.user._id } });
       return res.status(200).json(result.order);
     }
 
@@ -175,6 +181,7 @@ exports.updateOrderStatus = async (req, res, next) => {
       });
     }
 
+    notificationService.emitOrderStatusChanged({ order: updated, from: current.status, to: status, actor: { type: "admin", id: req.user._id } });
     res.status(200).json(updated);
   } catch (error) {
     next(error);

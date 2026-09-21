@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Notifications — UNiMART Admin</title>
+  <link rel="stylesheet" href="../css/tokens.css" />
+  <link rel="stylesheet" href="../css/layout.css" />
+</head>
+<body>
+  <div class="admin-shell" id="adminShell">
+    <div id="adminShellRoot"></div>
+  </div>
+
+  <template id="notificationsTemplate">
+    <div class="admin-page-header">
+      <div>
+        <h1>Notifications</h1>
+        <p>New orders, status changes, cancellations and stock alerts. Choose what you receive in Settings.</p>
+      </div>
+      <div class="admin-page-header__actions">
+        <select class="admin-select" id="notifFilter" aria-label="Filter notifications" style="width: auto;">
+          <option value="all">All</option>
+          <option value="unread">Unread only</option>
+        </select>
+        <button class="admin-btn admin-btn--secondary" id="notifMarkAll" type="button">Mark all as read</button>
+      </div>
+    </div>
+
+    <section class="admin-card">
+      <div class="admin-notif-list admin-notif-list--page" id="notifList" aria-live="polite"></div>
+      <div class="admin-notif-pager" id="notifPager" hidden>
+        <button class="admin-btn admin-btn--secondary admin-btn--sm" id="notifPrev" type="button">Previous</button>
+        <span id="notifPageInfo"></span>
+        <button class="admin-btn admin-btn--secondary admin-btn--sm" id="notifNext" type="button">Next</button>
+      </div>
+    </section>
+  </template>
+
+  <script src="../js/config.js"></script>
+  <script src="../js/services/apiClient.js"></script>
+  <script src="../js/services/authService.js"></script>
+  <script src="../js/services/notificationService.js"></script>
+  <script src="../js/state/authState.js"></script>
+  <script src="../js/utils/toast.js"></script>
+  <script src="../js/utils/format.js"></script>
+  <script src="../js/components/notificationBell.js"></script>
+  <script src="../js/layout.js"></script>
+  <script src="../js/pages/notifications.js"></script>
+</body>
+</html>

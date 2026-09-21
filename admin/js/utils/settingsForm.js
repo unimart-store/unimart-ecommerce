@@ -78,6 +78,29 @@ const AdminSettingsForm = (() => {
     couriers: s.couriers.map((c) =>
       withId(c.id, { name: c.name, enabled: Boolean(c.enabled), coverage: c.coverage, fee: c.fee, feeNotes: c.feeNotes, codSupported: Boolean(c.codSupported), notes: c.notes })
     ),
+    notifications: s.notifications
+      ? {
+          channels: { inApp: Boolean(s.notifications.channels.inApp), whatsapp: Boolean(s.notifications.channels.whatsapp) },
+          whatsapp: {
+            costAcknowledged: Boolean(s.notifications.whatsapp.costAcknowledged),
+            adminNumber: s.notifications.whatsapp.adminNumber,
+            adminTemplate: { name: s.notifications.whatsapp.adminTemplate.name, language: s.notifications.whatsapp.adminTemplate.language },
+            customerTemplate: { name: s.notifications.whatsapp.customerTemplate.name, language: s.notifications.whatsapp.customerTemplate.language },
+          },
+          admin: {
+            newOrder: Boolean(s.notifications.admin.newOrder),
+            statusChange: Boolean(s.notifications.admin.statusChange),
+            cancellation: Boolean(s.notifications.admin.cancellation),
+            lowStock: Boolean(s.notifications.admin.lowStock),
+            lowStockThreshold: s.notifications.admin.lowStockThreshold,
+          },
+          customer: {
+            orderCreated: Boolean(s.notifications.customer.orderCreated),
+            statusChange: Boolean(s.notifications.customer.statusChange),
+            cancellation: Boolean(s.notifications.customer.cancellation),
+          },
+        }
+      : undefined, // an older backend without notification settings: leave that section alone
     revision: s.revision,
   });
 
@@ -222,10 +245,42 @@ const AdminSettingsForm = (() => {
       `${errorHtml(e, "couriers")}<div class="settings-list">${s.couriers.map((c, i) => renderCourier(s, e, c, i)).join("") || '<p class="settings-empty">No couriers added.</p>'}</div>
        <button type="button" class="admin-btn admin-btn--secondary admin-btn--sm" data-action="add-courier">+ Add courier</button>`);
 
+  const renderNotifications = (s, e) => {
+    const n = s.notifications;
+    if (!n) return ""; // backend without notification settings: nothing to edit
+    const sub = (t) => `<h3 class="settings-subtitle">${escapeHtml(t)}</h3>`;
+    return card("Notifications",
+      "Choose what you and your customers are told about. The bell (in-app) is free. WhatsApp is optional and off until you turn it on.",
+      sub("Channels") + grid(
+        field(e, "notifications.channels.inApp", "In-app notifications (the bell here and on the website)", n.channels.inApp, "bool", { wide: true }) +
+        field(e, "notifications.channels.whatsapp", "Also send notifications on WhatsApp", n.channels.whatsapp, "bool", { wide: true, hint: "Business-initiated WhatsApp messages can be charged by Meta, and outside the 24-hour customer-service window they need a Meta-approved template. Uses your existing WhatsApp connection." })
+      ) +
+      sub("WhatsApp delivery") + grid(
+        field(e, "notifications.whatsapp.costAcknowledged", "I understand Meta may charge for business-initiated WhatsApp messages", n.whatsapp.costAcknowledged, "bool", { wide: true, hint: "Required before the WhatsApp channel can be switched on." }) +
+        field(e, "notifications.whatsapp.adminNumber", "Your WhatsApp number for alerts", n.whatsapp.adminNumber, "text", { max: 30, wide: true, hint: "Your own number, with country code (e.g. +977 98XXXXXXXX). Not the shop's chat number. Leave empty to send no alerts to yourself." }) +
+        field(e, "notifications.whatsapp.adminTemplate.name", "Approved template for your alerts", n.whatsapp.adminTemplate.name, "text", { max: 100, hint: "Name exactly as approved in Meta. Two text variables: title, message." }) +
+        field(e, "notifications.whatsapp.adminTemplate.language", "Template language", n.whatsapp.adminTemplate.language, "text", { max: 10, hint: "e.g. en or en_US" }) +
+        field(e, "notifications.whatsapp.customerTemplate.name", "Approved template for customers", n.whatsapp.customerTemplate.name, "text", { max: 100, hint: "Used when the customer has not messaged you in the last 24 hours." }) +
+        field(e, "notifications.whatsapp.customerTemplate.language", "Template language", n.whatsapp.customerTemplate.language, "text", { max: 10 })
+      ) +
+      sub("Alerts to you") + grid(
+        field(e, "notifications.admin.newOrder", "New orders", n.admin.newOrder, "bool") +
+        field(e, "notifications.admin.statusChange", "Order status changes", n.admin.statusChange, "bool") +
+        field(e, "notifications.admin.cancellation", "Order cancellations", n.admin.cancellation, "bool") +
+        field(e, "notifications.admin.lowStock", "Low-stock warnings", n.admin.lowStock, "bool") +
+        field(e, "notifications.admin.lowStockThreshold", "Warn when stock is at or below", n.admin.lowStockThreshold, "number", { hint: "Required for low-stock warnings. Whole number." })
+      ) +
+      sub("Messages to customers") + grid(
+        field(e, "notifications.customer.orderCreated", "Order placed", n.customer.orderCreated, "bool") +
+        field(e, "notifications.customer.statusChange", "Order status changes", n.customer.statusChange, "bool") +
+        field(e, "notifications.customer.cancellation", "Order cancelled", n.customer.cancellation, "bool")
+      ));
+  };
+
   const renderForm = (settings, errors = {}) => {
     const count = Object.keys(errors).length;
     const summary = count ? `<div class="settings-error-summary" role="alert">Please fix the highlighted fields (${count} ${count === 1 ? "problem" : "problems"}).</div>` : "";
-    return summary + renderBusiness(settings, errors) + renderContact(settings, errors) + renderHours(settings, errors) + renderDelivery(settings, errors) + renderPayment(settings, errors) + renderCouriers(settings, errors);
+    return summary + renderBusiness(settings, errors) + renderContact(settings, errors) + renderHours(settings, errors) + renderDelivery(settings, errors) + renderPayment(settings, errors) + renderCouriers(settings, errors) + renderNotifications(settings, errors);
   };
 
   return { DAYS, escapeHtml, emptyArea, emptyCourier, setByPath, readFieldValue, toPayload, renderForm, idFor };

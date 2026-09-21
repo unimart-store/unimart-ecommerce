@@ -25,6 +25,7 @@ const AdminConfig = (() => {
     products: "/api/products",
     orders: "/api/orders",
     settings: "/api/settings",
+    notifications: "/api/notifications",
     uploadImages: "/api/uploads/images",
     uploadImage: "/api/uploads/image",
   };

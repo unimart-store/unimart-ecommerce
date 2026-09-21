@@ -701,3 +701,59 @@ a:hover { text-decoration: underline; }
 @media (max-width: 479px) {
   .admin-stat-grid { grid-template-columns: 1fr; }
 }
+
+/* ==========================================================================
+   Notifications (topbar bell, dropdown, full page)
+   ========================================================================== */
+.admin-notif-wrap { position: relative; }
+.admin-notif-btn {
+  position: relative; display: inline-grid; place-items: center; width: 40px; height: 40px;
+  color: var(--admin-text-muted); background: transparent; border: 1px solid transparent;
+  border-radius: 50%; cursor: pointer; transition: background var(--admin-transition-fast), color var(--admin-transition-fast);
+}
+.admin-notif-btn:hover, .admin-notif-btn[aria-expanded="true"] { background: var(--admin-surface-alt); color: var(--admin-text); }
+.admin-notif-btn:focus-visible { outline: 2px solid var(--admin-accent); outline-offset: 2px; }
+.admin-notif-badge {
+  position: absolute; top: 2px; right: 0; min-width: 18px; height: 18px; padding: 0 5px;
+  font-size: 11px; font-weight: 700; line-height: 18px; text-align: center;
+  color: #fff; background: var(--admin-danger); border-radius: 9px; border: 2px solid var(--admin-surface);
+  box-sizing: content-box; transform: translate(0, 0);
+}
+.admin-notif-badge[hidden] { display: none; }
+
+.admin-notif-panel {
+  position: absolute; right: 0; top: calc(100% + var(--admin-sp-2)); z-index: 60;
+  width: 380px; max-width: calc(100vw - 24px);
+  background: var(--admin-surface); border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-lg); box-shadow: var(--admin-shadow-lg); overflow: hidden;
+}
+.admin-notif-panel[hidden] { display: none; }
+.admin-notif-head { display: flex; align-items: center; justify-content: space-between; padding: var(--admin-sp-3) var(--admin-sp-4); border-bottom: 1px solid var(--admin-border); }
+.admin-notif-list { max-height: min(70vh, 480px); overflow-y: auto; }
+.admin-notif-list--page { max-height: none; }
+.admin-notif-foot { display: block; padding: var(--admin-sp-3); text-align: center; font-size: var(--admin-fs-sm); font-weight: 600; border-top: 1px solid var(--admin-border); }
+.admin-notif-empty { margin: 0; padding: var(--admin-sp-6) var(--admin-sp-4); text-align: center; color: var(--admin-text-muted); font-size: var(--admin-fs-sm); }
+
+.admin-notif-item {
+  display: flex; gap: var(--admin-sp-3); align-items: flex-start; padding: var(--admin-sp-3) var(--admin-sp-4);
+  border-bottom: 1px solid var(--admin-border); color: var(--admin-text); text-decoration: none;
+}
+.admin-notif-item:last-child { border-bottom: 0; }
+.admin-notif-item:hover, .admin-notif-item:focus-visible { background: var(--admin-surface-alt); text-decoration: none; }
+.admin-notif-item--unread { background: var(--admin-accent-soft); }
+.admin-notif-dot { flex: 0 0 8px; height: 8px; margin-top: 7px; border-radius: 50%; background: transparent; }
+.admin-notif-item--unread .admin-notif-dot { background: var(--admin-accent); }
+.admin-notif-body { display: flex; flex-direction: column; min-width: 0; gap: 2px; }
+.admin-notif-body strong { font-size: var(--admin-fs-sm); font-weight: 600; }
+.admin-notif-msg { font-size: var(--admin-fs-sm); color: var(--admin-text-muted); overflow-wrap: anywhere; }
+.admin-notif-meta { font-size: var(--admin-fs-xs); color: var(--admin-text-faint); }
+.admin-notif-pager { display: flex; align-items: center; justify-content: center; gap: var(--admin-sp-4); padding: var(--admin-sp-3); border-top: 1px solid var(--admin-border); font-size: var(--admin-fs-sm); color: var(--admin-text-muted); }
+.admin-notif-pager[hidden] { display: none; }
+.admin-page-header__actions { display: flex; align-items: center; gap: var(--admin-sp-3); flex-wrap: wrap; }
+
+@media (max-width: 640px) {
+  /* On phones the panel becomes a full-width sheet under the topbar. */
+  .admin-notif-wrap { position: static; }
+  .admin-notif-panel { position: fixed; left: 8px; right: 8px; top: calc(var(--admin-topbar-height) + 4px); width: auto; max-width: none; }
+  .admin-page-header__actions { width: 100%; }
+}

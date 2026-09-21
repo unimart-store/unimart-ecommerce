@@ -6,7 +6,7 @@
  *
  * Usage: each protected page includes config.js, apiClient.js, authService.js,
  * authState.js, toast.js, then this file, then calls:
- *   AdminLayout.guardAndRender('dashboard')  // 'dashboard' | 'categories' | 'products' | 'orders' | 'settings'
+ *   AdminLayout.guardAndRender('dashboard')  // 'dashboard' | 'categories' | 'products' | 'orders' | 'notifications' | 'settings'
  * which resolves to the current user (redirecting to login if not an admin)
  * and only then renders the shell + reveals the page content.
  */
@@ -16,6 +16,7 @@ const AdminLayout = (() => {
     { key: "categories", label: "Categories", href: "categories.html", icon: "\u2637" },
     { key: "products", label: "Products", href: "products.html", icon: "\u25A3" },
     { key: "orders", label: "Orders", href: "orders.html", icon: "\u2637" },
+    { key: "notifications", label: "Notifications", href: "notifications.html", icon: "\u2709" },
     { key: "settings", label: "Settings", href: "settings.html", icon: "\u2699" },
   ];
 
@@ -211,6 +212,7 @@ const AdminLayout = (() => {
             <span class="admin-topbar__title" id="adminTopbarTitle"></span>
           </div>
           <div class="admin-topbar__right">
+            <div class="admin-notif-wrap" id="adminNotifWrap"></div>
             <div class="admin-user-menu-wrap" id="adminUserMenuWrap">
               <button class="admin-user-menu-btn" id="adminUserMenuBtn" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Account menu">
                 <span class="admin-user-avatar" aria-hidden="true">${user.avatar ? `<img src="${user.avatar}" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover;" />` : initials(user.name)}</span>
@@ -248,6 +250,8 @@ const AdminLayout = (() => {
     document.querySelectorAll(".admin-nav-link").forEach((link) => link.addEventListener("click", closeSidebar));
 
     wireUserMenu(user);
+    // Notification bell (own script; the shell keeps working if it isn't loaded).
+    window.AdminNotificationBell?.mount(document.getElementById("adminNotifWrap"));
   };
 
   // Resolves the current admin, redirecting to login when not authenticated
